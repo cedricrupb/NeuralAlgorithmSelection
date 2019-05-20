@@ -9,6 +9,7 @@ language: python
 env:
   global:
     - DOCKER_REPOSITORY=cedricrupb/neural-algorithm-selection
+    - BASE_REPOSITORY=cedricrupb/nas-base
 
 before_install:
   - docker --version
@@ -17,16 +18,11 @@ before_install:
 install:
   - docker pull ${DOCKER_REPOSITORY}:last_successful_build || true
   - docker pull ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} || true
-  - docker build -t cedricrupb/task-backend ./task_backend
-  - |
-    if [ ! -f "pesco.zip" ] ; then
-      ./scripts/setup-pesco.sh
-    fi
   - docker build -t ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} --pull=true .
   - docker run -d --name ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT}
 
 script:
-  - docker ps | grep -i ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} 
+  - docker ps | grep -i ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT}
 
 deploy:
   provider: script

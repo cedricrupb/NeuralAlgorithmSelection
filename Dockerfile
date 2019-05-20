@@ -1,8 +1,4 @@
-FROM cedricrupb/task-backend:latest
-
-RUN apt-get install -y unzip openjdk-8-jre
-
-COPY pesco.zip /app
-RUN unzip /app/pesco.zip
+FROM cedricrupb/nas-base:latest
 
 COPY tasks/ /app/python
+COPY tests/ /app/python
