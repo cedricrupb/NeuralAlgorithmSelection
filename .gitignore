@@ -109,3 +109,4 @@ scripts/auth.json
 rsync-*
 remote_config.json
 auth.json
+env.yml
