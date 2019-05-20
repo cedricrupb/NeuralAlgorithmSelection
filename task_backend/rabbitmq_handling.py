@@ -3,7 +3,7 @@ import logging
 import json
 import uuid
 
-import config as cfg
+import task_backend.config as cfg
 
 logger = logging.getLogger("mq_handler")
 

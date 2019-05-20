@@ -8,11 +8,11 @@ import uuid
 import logging
 import rabbitmq_handling
 
-from test import dummy_composite
-from task import hash_str
-from backend import Session, SessionNotInitializedException, ForkResource
-import distributed_io as dio
-import config as cfg
+from task_backend.test import dummy_composite
+from task_backend.task import hash_str
+from task_backend.backend import Session, SessionNotInitializedException, ForkResource
+import task_backend.distributed_io as dio
+import task_backend.config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT,

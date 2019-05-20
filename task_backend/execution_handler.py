@@ -1,4 +1,4 @@
-from backend import ForkResource, _handle_merge
+from task_backend.backend import ForkResource, _handle_merge
 import copy
 
 

@@ -1,4 +1,4 @@
-from backend import ForkResource
+from task_backend.backend import ForkResource
 import json
 import gridfs
 import uuid

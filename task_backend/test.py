@@ -1,7 +1,7 @@
-from task import task_definition, fork,\
+from task_backend.task import task_definition, fork,\
                  merge, build_graph, to_dot, get_item
 
-from backend import openLocalSession
+from task_backend.backend import openLocalSession
 
 import copy
 

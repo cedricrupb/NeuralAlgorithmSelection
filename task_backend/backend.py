@@ -1,4 +1,4 @@
-import task
+import task_backend.task
 
 import networkx as nx
 import copy

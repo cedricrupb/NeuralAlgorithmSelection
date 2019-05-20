@@ -1,1 +1,12 @@
 language: python
+
+services:
+  - docker
+
+before_install:
+  - docker build -t cedricrupb/task-backend ./task_backend
+  - |
+    if [ ! -f "pesco.zip" ] ; then
+      ./scripts/setup-pesco.sh
+    fi
+  - docker build -t cedricrupb/neural-selection .

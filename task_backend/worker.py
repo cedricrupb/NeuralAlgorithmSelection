@@ -1,5 +1,4 @@
 import logging
-import rabbitmq_handling
 import json
 import traceback
 from urllib.parse import quote_plus
@@ -11,10 +10,11 @@ import copy
 import uuid
 import pika
 
-from backend import ForkResource
-import distributed_io as dio
-import execution_handler as ex
-import config as cfg
+import task_backend.rabbitmq_handling as rabbitmq_handling
+from task_backend.backend import ForkResource
+import task_backend.distributed_io as dio
+import task_backend.execution_handler as ex
+import task_backend.config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO,
