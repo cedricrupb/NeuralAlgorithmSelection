@@ -1,0 +1,14 @@
+FROM ubuntu:18.04
+
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y python3 python3-pip unzip openjdk-8-jre \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY pesco.zip /app/pesco.zip
+RUN unzip /app/pesco.zip -d /app \
+    && rm /app/pesco.zip
+
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV PYTHONPATH="$PYTHONPATH:/app/python"
