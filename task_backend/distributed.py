@@ -12,6 +12,7 @@ from test import dummy_composite
 from task import hash_str
 from backend import Session, SessionNotInitializedException, ForkResource
 import distributed_io as dio
+import config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT,
@@ -22,10 +23,7 @@ logger = logging.getLogger("session_remote")
 __db__ = None
 __client__ = {}
 
-__config__ = {}
-
-with open("remote_config.json", "r") as j:
-    __config__ = json.load(j)
+__config__ = cfg.load_config()
 
 
 def setup_client(url, auth=None):

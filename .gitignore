@@ -108,3 +108,4 @@ scripts/auth.json
 *.zip
 rsync-*
 remote_config.json
+auth.json

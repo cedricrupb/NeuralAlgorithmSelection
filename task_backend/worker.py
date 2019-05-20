@@ -14,6 +14,7 @@ import pika
 from backend import ForkResource
 import distributed_io as dio
 import execution_handler as ex
+import config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO,
@@ -25,8 +26,7 @@ __client__ = {}
 
 __config__ = {}
 
-with open("remote_config.json", "r") as j:
-    __config__ = json.load(j)
+__config__ = cfg.load_config()
 
 
 def setup_client(url, auth=None):
@@ -802,7 +802,7 @@ def consume_request(ch, method, properties, body):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
-if __name__ == '__main__':
+def start_worker():
     logger.info("Start Worker.")
     rabbitmq_handling.define_task_callback(consume_task)
     rabbitmq_handling.define_request_callback(consume_request)
@@ -810,3 +810,7 @@ if __name__ == '__main__':
         rabbitmq_handling.consume_loop()
     finally:
         rabbitmq_handling.close_connections()
+
+
+if __name__ == '__main__':
+    start_worker()

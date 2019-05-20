@@ -3,6 +3,8 @@ import logging
 import json
 import uuid
 
+import config as cfg
+
 logger = logging.getLogger("mq_handler")
 
 __config__ = {}
@@ -14,8 +16,7 @@ __closed__ = False
 __log__ = False
 
 
-with open("remote_config.json", "r") as j:
-    __config__ = json.load(j)
+__config__ = cfg.load_config()
 
 
 def _setup_connection():
