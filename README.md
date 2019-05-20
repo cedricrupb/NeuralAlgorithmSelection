@@ -1,1 +1,1 @@
-# GCNSelection
+# Neural Algorithm Selection
