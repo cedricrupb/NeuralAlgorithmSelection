@@ -13,8 +13,13 @@ def load_config():
         path = os.environ['CONFIG_REMOTE_PATH']
 
     if not os.path.exists(path):
-        print("Cannot load config. Exit.")
-        exit()
+        while path != 'q':
+            path = input("Cannot load config. Specify alternative path? [enter: q to exit]:")
+            if os.path.exists(path):
+                break
+
+        if path == 'q':
+            print('Exit program.')
 
     with open(path, 'r') as i:
         return json.load(i)

@@ -18,7 +18,7 @@ before_install:
 install:
   - docker pull ${DOCKER_REPOSITORY}:last_successful_build || true
   - docker pull ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} || true
-  - docker build -t ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} --pull=true .
+  - docker build -t ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT} -t ${DOCKER_REPOSITORY}:latest --pull=true .
   - docker run -d ${DOCKER_REPOSITORY}:${TRAVIS_COMMIT}
 
 script:
