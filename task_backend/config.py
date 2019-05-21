@@ -20,6 +20,7 @@ def load_config():
 
         if path == 'q':
             print('Exit program.')
+            exit()
 
     with open(path, 'r') as i:
         return json.load(i)
