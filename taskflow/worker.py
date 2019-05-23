@@ -10,11 +10,11 @@ import copy
 import uuid
 import pika
 
-import task_backend.rabbitmq_handling as rabbitmq_handling
-from task_backend.backend import ForkResource
-import task_backend.distributed_io as dio
-import task_backend.execution_handler as ex
-import task_backend.config as cfg
+import taskflow.rabbitmq_handling as rabbitmq_handling
+from taskflow.backend import ForkResource
+import taskflow.distributed_io as dio
+import taskflow.execution_handler as ex
+import taskflow.config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO,

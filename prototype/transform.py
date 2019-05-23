@@ -4,6 +4,7 @@ import json
 import argparse
 import os
 import networkx as nx
+import random
 
 
 def is_forward_and_parse(e):
@@ -28,22 +29,89 @@ def parse_dfs_nx(R):
 
     return graph
 
-def _simple_linear(graph, root, ast_index, ast_count, depth):
-    index = {n: i for i, n in enumerate(graph.nodes())}
-    ast_rev = {v: k for k, v in ast_index.items()}
+
+def parse_dfs_nx_alt(R):
+    if R is None:
+        return nx.MultiDiGraph()
+    graph = nx.MultiDiGraph()
+
+    for k, v in R['nodes'].items():
+        graph.add_node(k, label=v)
+
+    for u, l, v in R['edges']:
+        e_label, forward = is_forward_and_parse(l)
+        if forward:
+            graph.add_edge(u, v, key=e_label)
+        else:
+            graph.add_edge(v, u, key=e_label)
+
+    for n in graph.nodes():
+        if graph.out_degree(n) == 0:
+            s = n.split("_")
+            if len(s) == 2:
+                graph.add_edge(n, s[0], key="s")
+
+    return graph
+
+
+def subsample_graph(graph, root, size):
+
+    if size > len(graph.nodes()):
+        return list(graph.nodes())
+
+    # print("Has to subsample as %i > %i (%s)" % (len(graph.nodes()), size, str(graph.nodes[root]['label'])))
+
+    depths = {}
+    seen = set([])
+
+    queue = [(root, 0)]
+
+    while len(queue) > 0:
+        node, depth = queue.pop()
+
+        if node in seen:
+            continue
+
+        if depth not in depths:
+            depths[depth] = []
+
+        depths[depth].append(node)
+        seen.add(node)
+
+        for v, _ in graph.in_edges(node):
+            queue.append((v, depth + 1))
+
+    sample = []
+
+    i = 0
+    while i < len(depths) and len(sample) + len(depths[i]) <= size:
+        sample.extend(depths[i])
+        i += 1
+
+    if i < len(depths) and size - len(sample) > 0:
+        sample.extend(random.sample(depths[i], size - len(sample)))
+
+    return sample
+
+
+def _simple_linear(graph, root, ast_index, ast_count, depth, sub_sample=50, verbose=False):
+    index = {n: i for i, n in enumerate(subsample_graph(graph, root, sub_sample))}
 
     A = np.zeros((len(index), len(index)))
     D = np.zeros((len(index),))
     X = []
 
-    for n, label in graph.nodes(data='label'):
+    for n in index.keys():
+        label = graph.nodes[n]['label']
         x = np.zeros((ast_count,))
         x[ast_index[label]] = 1
         X.append(x)
 
         A[index[n], index[n]] = 1
 
-    for u, v in graph.edges():
+    for u, v in graph.edges(index.keys()):
+        if v not in index:
+            continue
         A[index[u], index[v]] = 1
         A[index[v], index[u]] = 1
 
@@ -109,11 +177,22 @@ def _compress_node(graph, n, ast_index, ast_count):
     return ast_set
 
 
-def compress_graph(graph, ast_index, ast_count):
+def _verbose_enum(L, msg, verbose):
+    if verbose:
+        return tqdm(L, desc=msg)
+    return L
+
+
+def compress_graph(graph, ast_index, ast_count, verbose=False):
     if 'count' not in ast_index:
         ast_index['count'] = 0
 
-    for n in graph.nodes():
+    if len(graph.nodes()) > 1000:
+        verbose = True
+
+    # print("Number of nodes: %i" % len(graph.nodes()))
+
+    for n in _verbose_enum(graph.nodes(), "Index node labels", verbose):
         node = graph.nodes[n]
         label = node['label']
         if label not in ast_index:
@@ -131,7 +210,7 @@ def compress_graph(graph, ast_index, ast_count):
             cfg_nodes.add(v)
 
     ast = set([])
-    for cfg_node in cfg_nodes:
+    for cfg_node in _verbose_enum(cfg_nodes, 'Compress AST trees', verbose):
         ast = ast.union(
             _compress_node2(graph, cfg_node, ast_index, ast_count)
         )
@@ -141,10 +220,14 @@ def compress_graph(graph, ast_index, ast_count):
     feature_index = {
         'cfg': 0,
         'dd': 1,
-        'cd': 2
+        'cd': 2,
+        'cd_f': 2,
+        'cd_t': 2
     }
 
     for u, v, key in graph.edges(keys=True):
+        if key == 'du':
+            continue
         feature = np.zeros((3,))
         feature[feature_index[key]] = 1
         graph.edges[u, v, key]['features'] = feature
@@ -160,6 +243,9 @@ def to_custom_dict(graph):
         node_index[n] = count
         count += 1
 
+        if features is None:
+            continue
+
         node_embed = []
         for i in range(features.shape[0]):
             val = features[i]
@@ -172,12 +258,16 @@ def to_custom_dict(graph):
     feature_index = {
         'cfg': 0,
         'dd': 1,
-        'cd': 2
+        'cd': 2,
+        'cd_f': 2,
+        'cd_t': 2
     }
 
     edges = []
 
     for u, v, key in graph.edges(keys=True):
+        if key == 'du':
+            continue
         uix = node_index[u]
         vix = node_index[v]
         keyix = feature_index[key]
@@ -206,6 +296,7 @@ def load_labels(path):
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser()
     parser.add_argument("label")
     parser.add_argument("input")
@@ -217,6 +308,10 @@ if __name__ == '__main__':
 
     ast_index = {}
     ast_count = 158
+
+    if os.path.exists("ast_index.json"):
+        with open("ast_index.json", "r") as i:
+            ast_index = json.load(i)
 
     try:
         for file, label in tqdm(labels.items()):

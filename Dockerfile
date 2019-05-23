@@ -2,10 +2,10 @@ FROM cedricrupb/nas-base:latest
 
 WORKDIR /app/python/
 
-COPY task_backend/ ./task_backend/
-COPY tasks/ ./
-COPY requirements.txt ./requirements.txt
+COPY requirements.txt ./
+RUN pip install -r ./requirements.txt
 
-RUN pip3 install -r ./requirements.txt
+COPY taskflow/ ./taskflow/
+COPY tasks/ ./tasks/
 
-CMD ["python3", "-m", "task_backend"]
+CMD ["python3", "-m", "taskflow"]

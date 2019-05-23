@@ -1,20 +1,11 @@
-import task_backend.task
+from taskflow import SessionNotInitializedException
+import taskflow.task as task
+import taskflow.execution_handler as ex
+from taskflow.symbolic import ForkResource
 
 import networkx as nx
 import copy
 import uuid
-
-
-class ForkResource(object):
-
-    def __init__(self, obj, src=None):
-        self.src_ = src
-        if self.src_ is None:
-            self.src_ = str(uuid.uuid1())
-        self.obj_ = obj
-
-    def __str__(self):
-        return "fork[ %s ]" % (str(self.obj_))
 
 
 def _breaking_node(graph, id):
@@ -173,37 +164,7 @@ def _backend_execute(function, kwargs, backend_setting):
             )
         return ForkResource(results, resource.src_)
 
-    return function(**kwargs)
-
-
-def _handle_merge(merge_element, flatten):
-
-    merge = []
-    next_flatten = []
-    if isinstance(merge_element, ForkResource):
-
-        for o in merge_element.obj_:
-            element, next_fl = _handle_merge(
-                o, flatten
-            )
-            merge.append(
-                element
-            )
-            next_flatten.append(next_fl)
-
-    else:
-        return merge_element, False
-
-    if flatten:
-        out = []
-        for i, r in enumerate(merge):
-            if next_flatten[i]:
-                out.extend(r)
-            else:
-                out.append(r)
-        merge = out
-
-    return merge, True
+    return ex.execute_function(function, kwargs, backend_setting)
 
 
 def _handle_func_call(function, kwargs, backend_setting):
@@ -215,7 +176,7 @@ def _handle_func_call(function, kwargs, backend_setting):
         res = []
         for k in kwargs:
             if k.startswith('__merge__'):
-                res.append(_handle_merge(kwargs[k], backend_setting['flatten'])[0])
+                res.append(ex._handle_merge(kwargs[k], backend_setting['flatten'])[0])
         if backend_setting['flatten']:
             out = []
             for r in res:
@@ -336,10 +297,6 @@ def _execute_graph(seq_graph):
         return end_bind[end_keys[0]]
 
     return [end_bind[k] for k in end_keys]
-
-
-class SessionNotInitializedException(Exception):
-    pass
 
 
 class LocalBackend:

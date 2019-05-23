@@ -2,9 +2,12 @@ import os
 import json
 
 
-def load_config():
-    if os.path.exists('./remote_config.json'):
-        with open('./remote_config.json', 'r') as i:
+def load_config(failing_default=None):
+    base = os.path.dirname(__file__)
+    path = os.path.join(base, './remote_config.json')
+
+    if os.path.exists(path):
+        with open(path, 'r') as i:
             return json.load(i)
 
     if 'CONFIG_REMOTE_PATH' not in os.environ:
@@ -13,6 +16,9 @@ def load_config():
         path = os.environ['CONFIG_REMOTE_PATH']
 
     if not os.path.exists(path):
+        if failing_default is not None:
+            return failing_default
+
         while path != 'q':
             path = input("Cannot load config. Specify alternative path? [enter: q to exit]:")
             if os.path.exists(path):

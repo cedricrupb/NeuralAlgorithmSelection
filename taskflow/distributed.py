@@ -8,11 +8,12 @@ import uuid
 import logging
 import rabbitmq_handling
 
-from task_backend.test import dummy_composite
-from task_backend.task import hash_str
-from task_backend.backend import Session, SessionNotInitializedException, ForkResource
-import task_backend.distributed_io as dio
-import task_backend.config as cfg
+from taskflow import SessionNotInitializedException, RemoteError
+from taskflow.test import dummy_composite
+from taskflow.task import hash_str
+from taskflow.backend import Session, ForkResource
+import taskflow.distributed_io as dio
+import taskflow.config as cfg
 
 FORMAT = '%(asctime)s %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT,
@@ -288,10 +289,6 @@ def _serialize_graph(session_id, req_id, sequence_graph):
     db.sessions.replace_one({'_id': session_id}, session)
 
     logger.info("Created execution request [session: %s, request_id: %s]" % (session_id, req_id))
-
-
-class RemoteError(Exception):
-    pass
 
 
 def _retrieve_and_destroy(session_id, req_id):
