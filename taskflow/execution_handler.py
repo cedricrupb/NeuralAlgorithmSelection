@@ -7,6 +7,8 @@ from pymongo import MongoClient
 import os
 import logging
 from multiprocessing import Process
+import sys
+import io
 
 
 import taskflow.config as cfg
@@ -179,11 +181,46 @@ class FunctionEnvironment(object):
             return self._setting[key]
         return None
 
+    def log(self, text):
+        if '__logger__' in self._setting:
+            self._setting['__logger__'](text)
+        logger.info(text)
+
+
+class LogIO(io.StringIO):
+
+    def __init__(self, logger, orig):
+        self._logger = logger
+        self.orig_ = orig
+        super().__init__()
+
+    def write(self, s):
+        sys.stdout = self.orig_
+        try:
+            line = s.rstrip()
+            if len(line) == 0:
+                return
+            self._logger(line)
+        finally:
+            sys.stdout = self
+        super().write(s)
+
 
 def _execute_capsuled_function(function, kwargs, backend_setting, result):
-    result.append(
-        function(**kwargs)
-    )
+
+    # Bind stdout
+    if '__logger__' in backend_setting:
+        sys.stdout = LogIO(backend_setting['__logger__'], sys.stdout)
+        sys.stderr = LogIO(backend_setting['__logger__'], sys.stdout)
+
+    try:
+        result.append(
+            function(**kwargs)
+        )
+    finally:
+        if '__logger__' in backend_setting:
+            sys.stdout = sys.stdout.orig_
+            sys.stderr = sys.stderr.orig_
 
 
 def _execute_timeout_function(function, kwargs, backend_setting, timeout):
@@ -221,4 +258,8 @@ def _single_execution(function, kwargs, backend_setting):
             backend_setting['timeout']
         )
 
-    return function(**kwargs)
+    result = []
+    _execute_capsuled_function(function, kwargs, backend_setting, result)
+
+    if len(result) > 0:
+        return result[0]

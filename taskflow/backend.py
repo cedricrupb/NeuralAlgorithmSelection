@@ -8,6 +8,10 @@ import copy
 import uuid
 
 
+def local_logger(text):
+    print(text)
+
+
 def _breaking_node(graph, id):
     if id == 'START' or id == 'STOP':
         return True
@@ -23,6 +27,9 @@ def _breaking_node(graph, id):
             return True
 
     if 'timeout' in attr:
+        return True
+
+    if 'optional' in attr:
         return True
 
     return False
@@ -163,6 +170,9 @@ def _backend_execute(function, kwargs, backend_setting):
                 _backend_execute(function, bind_kwargs, backend_setting)
             )
         return ForkResource(results, resource.src_)
+
+    if '__logger__' not in backend_setting:
+        backend_setting['__logger__'] = local_logger
 
     return ex.execute_function(function, kwargs, backend_setting)
 

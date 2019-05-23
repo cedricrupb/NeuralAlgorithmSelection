@@ -9,6 +9,8 @@ from datetime import datetime
 import copy
 import uuid
 import pika
+import time
+import importlib
 
 import taskflow.rabbitmq_handling as rabbitmq_handling
 from taskflow.backend import ForkResource
@@ -27,6 +29,29 @@ __client__ = {}
 __config__ = {}
 
 __config__ = cfg.load_config()
+
+__flushes__ = []
+
+
+class DelayedUpdate(object):
+
+    def __init__(self, coll, threshold=50):
+        self._coll = coll
+        self._updates = []
+        self._threshold = threshold
+
+    def update(self, obj):
+        self._updates.append(obj)
+
+        if len(self._updates) > self._threshold:
+            self.flush()
+
+    def flush(self):
+        c = self._updates
+        self._updates = []
+
+        if len(c) > 0:
+            self._coll.bulk_write(c)
 
 
 def setup_client(url, auth=None):
@@ -104,6 +129,33 @@ def log(message):
     rabbitmq_handling.log_event("worker", message)
 
 
+def db_log(delayed, func_id, msg):
+    delayed.update(InsertOne({
+        'function_id': func_id,
+        'message': msg,
+        'time_stamp': time.time(),
+        'time': str(datetime.now())
+    }))
+
+
+def build_remote_log(db, func_id):
+
+    global __flushes__
+
+    delayed = DelayedUpdate(db.logs)
+    __flushes__.append(delayed)
+
+    def remote_log(text):
+        print(text)
+        log({
+            'function_id': func_id,
+            'message': text
+        })
+        db_log(delayed, func_id, text)
+
+    return remote_log
+
+
 class UnknownTaskException(Exception):
     pass
 
@@ -143,9 +195,9 @@ def is_finished(graph, job_id):
 def load_results(db, graph, job_id):
     job = graph.find_one({'_id': job_id})
 
-    print(job)
-
     if 'error' in job:
+        if 'optional' in job:
+            return None
         return "__ERROR__"
 
     return dio.load(db, job['result'], partial=True)
@@ -216,16 +268,14 @@ class VarNotBoundException(Exception):
 
 def _load_func(name):
 
-    parts = name.split(".")
+    parts = name.rsplit(".", 1)
     module = parts[0]
 
-    module = __import__(module)
-    func = module
+    module = importlib.import_module(module)
 
-    for i in range(1, len(parts)):
-        func = getattr(func, parts[i])
-
-    func = getattr(func, '_function')
+    func = getattr(module, parts[1])
+    if hasattr(func, '_function'):
+        func = getattr(func, '_function')
 
     return func
 
@@ -257,6 +307,8 @@ def _execute_funcs(calls, kwargs, bindings):
                 )
 
         setting = function['backend_setting']
+
+        setting['__logger__'] = build_remote_log(db, function['_id'])
 
         result = ex.execute_function(
             func_ref, bind, setting
@@ -292,7 +344,7 @@ def open_session(task):
                            'result': {'$exists': False},
                            'error': {'$exists': False},
                            'run_id': {'$exists': False}},
-                           ['_id']):
+                          ['_id']):
         rabbitmq_handling.start_job_request(
             session_id, job['_id']
         )
@@ -722,6 +774,13 @@ def close_job(task):
         'state': 'finished'
     })
 
+    global __flushes__
+
+    for fl in __flushes__:
+        fl.flush()
+    __flushes__ = []
+
+
     if len(job['outgoing']) == 0:
         rabbitmq_handling.close_session(session)
     else:
@@ -786,6 +845,7 @@ def consume_request(ch, method, properties, body):
                 content_type="application/json"
             ),
             body="Request %s does not exist!" % obj['request_id'])
+        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
     entry = {

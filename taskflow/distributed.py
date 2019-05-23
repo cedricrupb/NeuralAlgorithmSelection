@@ -6,11 +6,13 @@ import json
 import datetime
 import uuid
 import logging
-import rabbitmq_handling
 
+import inspect
+
+import taskflow.rabbitmq_handling as rabbitmq_handling
 from taskflow import SessionNotInitializedException, RemoteError
 from taskflow.test import dummy_composite
-from taskflow.task import hash_str
+from taskflow.symbolic import hash_str
 from taskflow.backend import Session, ForkResource
 import taskflow.distributed_io as dio
 import taskflow.config as cfg
@@ -62,11 +64,7 @@ def get_db():
 
 
 def _func_name(o):
-    module = o.__module__
-    if module is None or module == str.__module__:
-        return o.__name__  # Avoid reporting __builtin__
-    else:
-        return module + '.' + o.__name__
+    return inspect.getmodule(o).__spec__.name + "." + o.__name__
 
 
 def _serialize_func(db, session_id, name, attr):
@@ -95,6 +93,9 @@ def _serialize_func(db, session_id, name, attr):
         'backend_setting': attr['attributes']
     }
 
+    if 'optional' in attr:
+        entry['optional'] = True
+
     return entry['_id'], InsertOne(entry)
 
 
@@ -109,6 +110,8 @@ def _serialize_node(db, session_id, node_id, node, functions):
     identifier = []
     calls = []
     binds = []
+
+    optional = False
 
     for call, bind in node['sequence']:
         if call == 'START' or call == 'STOP':
@@ -128,6 +131,9 @@ def _serialize_node(db, session_id, node_id, node, functions):
             identifier.append(str(call_func))
             calls.append(call_func)
             binds.append(bind)
+
+            if call.startswith("optional("):
+                optional = True
 
     if len(calls) == 0 and not is_fork and not is_merge:
         return None
@@ -161,6 +167,8 @@ def _serialize_node(db, session_id, node_id, node, functions):
         entry['merge'] = is_merge
     if is_flatten:
         entry['flatten'] = True
+    if optional:
+        entry['optional'] = True
 
     return entry
 

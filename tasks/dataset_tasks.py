@@ -1,6 +1,8 @@
 import taskflow as tsk
-from taskflow.task import task_definition
+from taskflow import task_definition
 from taskflow.backend import openLocalSession
+from taskflow.distributed import openRemoteSession
+from taskflow import utils
 
 import requests
 import math
@@ -155,7 +157,7 @@ def read_svcomp_bz2(path, result):
 
 
 def sp_run_success(cmd):
-    sp.run(cmd, check=True, shell=True)
+    utils.run_command(cmd)
 
 
 def prepare_svcomp_git(competition_year, directory):
@@ -167,15 +169,13 @@ def prepare_svcomp_git(competition_year, directory):
 
     if not os.path.exists(git_path):
         global SV_BENCHMARKS_GIT
-        sp_run_success(["cd", "%s" % base_path, "&&", "git",
-                        "clone", SV_BENCHMARKS_GIT])
+        sp_run_success(["git", "clone", SV_BENCHMARKS_GIT, base_path])
 
     if not os.path.exists(git_path):
         raise tsk.EnvironmentException(
                     "Something went wrong during git clone.")
 
-    sp_run_success(["cd", "%s" % git_path, "&&", "git", "checkout",
-                    "tags/svcomp%s" % competition_year])
+    sp_run_success(["git", "-C", git_path, "checkout", "tags/svcomp%s" % competition_year[2:]])
 
     return git_path
 
@@ -192,7 +192,7 @@ def run_pesco(pesco_path, in_file, out_file, heap="10g", timeout=900):
     if not (os.path.isfile(path_to_source) and (path_to_source.endswith('.i') or path_to_source.endswith('.c'))):
         raise ValueError('path_to_source is no valid filepath. [%s]' % path_to_source)
 
-    proc = sp.run(
+    proc = utils.run_command(
                     [run_path,
                      "-graphgen",
                      "-heap", heap,
@@ -200,9 +200,6 @@ def run_pesco(pesco_path, in_file, out_file, heap="10g", timeout=900):
                      "-setprop", "neuralGraphGen.output="+output_path,
                      path_to_source
                      ],
-                    check=True,
-                    stdout=sp.PIPE,
-                    stderr=sp.PIPE,
                     timeout=timeout
                     )
 
@@ -221,9 +218,9 @@ def load_svcomp(competition_year, env=None):
     coll = env.get_db().svcomp
 
     if coll.find_one({'svcomp': competition_year}) is not None:
-        return [
-            r['_id'] for r in coll.find({'svcomp': competition_year}, ['_id'])
-        ]
+        return list(set([
+            r['name'] for r in coll.find({'svcomp': competition_year}, ['name'])
+        ]))
 
     tmp = env.get_cache_dir()
     if tmp is not None:
@@ -619,5 +616,7 @@ if __name__ == '__main__':
     load_it = tsk.fork(load)
     graph_it = code_to_graph(load_it, comp)
 
-    with openLocalSession() as sess:
+    with openRemoteSession(
+        session_id="317e3bb0-caf4-4f57-9975-0e782371a866"
+    ) as sess:
         sess.run(graph_it)

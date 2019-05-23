@@ -1,11 +1,43 @@
 import uuid
 import hashlib
+from inspect import signature
+
 
 def hash_str(string):
     bytes = string.encode('utf-8')
     h = hashlib.blake2b(digest_size=32)
     h.update(bytes)
     return str(h.hexdigest())
+
+
+def __create_sym(function, args, kwargs):
+    sig = signature(function)
+    bound_args = sig.bind(*args, **kwargs)
+
+    env_args_ = {}
+    task_args_ = {}
+
+    for k in bound_args.arguments:
+        x = bound_args.arguments[k]
+
+        if isinstance(x, Symbolic):
+            task_args_[k] = x
+        else:
+            env_args_[k] = x
+
+    return SymbolicFunction(function, "1.0",
+                            sig, env_args_, task_args_)
+
+
+def get_item_inner(obj, key):
+    return obj[key]
+
+
+def get_item(obj, key):
+    return __create_sym(
+        get_item_inner, [obj, key], {}
+    )
+
 
 class ForkResource(object):
 
@@ -33,17 +65,20 @@ class optional(Symbolic):
     def get_content(self):
         return self._obj
 
-    def __local__(self, *args, **kwargs):
-        return self._obj.__local__(*args, **kwargs)
-
     def __str__(self):
         return "optional(%s)" % str(self._obj)
+
+    def __identifier__(self):
+        return "optional(%s)" % self._obj.__identifier__()
+
+    def __hash__(self):
+        return hash_str(optional+"_"+self._obj.hash())
 
 
 class SymbolicFunction(Symbolic):
 
     def __init__(self, func, version, signature, env_args,
-                 task_args, attr=None):
+                 task_args, attr={}):
         self.function_ = func
         self.version_ = version
         self._signature = signature

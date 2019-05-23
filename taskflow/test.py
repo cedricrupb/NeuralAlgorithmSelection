@@ -1,5 +1,6 @@
-from taskflow.task import task_definition, fork,\
-                 merge, build_graph, to_dot, get_item
+import taskflow as tsk
+from taskflow import task_definition
+from taskflow.task import build_graph, to_dot
 
 from taskflow.backend import openLocalSession
 
@@ -17,7 +18,7 @@ def process2graph(path):
 
 
 @task_definition()
-def collect_subgraphs(graph, labels={}):
+def collect_subgraphs(graph, labels={}, opt=None):
     labels = copy.deepcopy(labels)
     labels[graph] = "Ahoi"
     return 'subgraph_%s' % graph, labels
@@ -45,13 +46,18 @@ def range_task(number):
     return [{'number': i} for i in range(number)]
 
 
+@task_definition()
+def error():
+    raise ValueError("Test error")
+
+
 def dummy_composite():
     sup = dummy_supplier()
-    sup_fork = fork(sup)
+    sup_fork = tsk.fork(sup)
     collect = collect_subgraphs(sup_fork)
-    y_it = fork(range_task(10))
-    collect_1 = collect_subgraphs(collect[0], collect[1])
-    join = merge([collect_1], flatten=True)
+    y_it = tsk.fork(range_task(10))
+    collect_1 = collect_subgraphs(collect[0], collect[1], opt=tsk.optional(error()))
+    join = tsk.merge([collect_1], flatten=True)
     return task_print_list(
         join
     )

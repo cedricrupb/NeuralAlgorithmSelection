@@ -2,6 +2,7 @@ from taskflow.backend import ForkResource
 import json
 import gridfs
 import uuid
+from bson.objectid import ObjectId
 
 
 class Reference(object):
@@ -61,6 +62,9 @@ def store(db, obj):
     if isinstance(obj, Reference):
         return obj.reference_
 
+    if isinstance(obj, ObjectId):
+        return obj
+
     if isinstance(obj, ForkResource):
         return "fork_%s_%s" % (obj.src_, store(db, obj.obj_))
 
@@ -101,6 +105,9 @@ def _rebuild_list(db, ref, partial):
 
 
 def load(db, obj_ref, partial=False):
+
+    if isinstance(obj_ref, ObjectId):
+        return obj_ref
 
     if obj_ref == '<null>':
         return None
