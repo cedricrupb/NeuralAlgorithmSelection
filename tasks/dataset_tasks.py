@@ -288,8 +288,16 @@ def code_to_graph(name, competition, git_init=True, env=None):
     if 'graph_ref' in info:
         return info['graph_ref']
 
-    svcomp_db.update({'name': info['name'], 'svcomp': info['svcomp']},
-                     {'$set': {'graph_ref': 0}})
+    fs = GridFS(env.get_db())
+    ret = fs.find_one({'name': info['name']})
+
+    if ret is not None:
+        svcomp_db.update_many({'name': info['name'], 'svcomp': info['svcomp']},
+                              {'$set': {'graph_ref': ret._id}})
+        return ret._id
+
+    svcomp_db.update_many({'name': info['name'], 'svcomp': info['svcomp']},
+                          {'$set': {'graph_ref': 0}})
 
     try:
 
@@ -324,7 +332,6 @@ def code_to_graph(name, competition, git_init=True, env=None):
                 "Pesco doesn't seem to be correctly configured! No output for %s" % info['name']
             )
 
-        fs = GridFS(env.get_db())
         file = fs.new_file(name=info['name'], competition=info['svcomp'], encoding="utf-8")
 
         try:
@@ -333,13 +340,13 @@ def code_to_graph(name, competition, git_init=True, env=None):
         finally:
             file.close()
 
-        svcomp_db.update({'name': info['name'], 'svcomp': info['svcomp']},
-                         {'$set': {'graph_ref': file._id,
-                                   'run_time': run_time}})
+        svcomp_db.update_many({'name': info['name'], 'svcomp': info['svcomp']},
+                              {'$set': {'graph_ref': file._id,
+                                        'run_time': run_time}})
 
     except Exception as e:
-        svcomp_db.update({'name': info['name'], 'svcomp': info['svcomp']},
-                         {'$unset': {'graph_ref': 0}})
+        svcomp_db.update_many({'name': info['name'], 'svcomp': info['svcomp']},
+                              {'$unset': {'graph_ref': 0}})
         raise e
 
     return file._id

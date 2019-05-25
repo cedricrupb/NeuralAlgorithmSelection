@@ -115,6 +115,8 @@ def _long_run(connection, channel, delivery_tag, task, callback):
     except Exception:
         res = 'exception:\n'+traceback.format_exc()
 
+    rabbitmq_handling.close_thread()
+
     connection.add_callback_threadsafe(_ack(channel,
                                             delivery_tag,
                                             callback, res))
@@ -376,6 +378,7 @@ def _execute_funcs(run_id, calls, kwargs, bindings):
         setting = function['backend_setting']
 
         setting['__logger__'] = build_remote_log(db, run_id)
+        setting['__logger__']('START')
 
         result = ex.execute_function(
             func_ref, bind, setting
@@ -665,6 +668,7 @@ def run_fork_wrap(session_id, _id, db, run, kwargs):
             fl.flush()
         __flushes__ = []
 
+        logger.info("Finished fork %s." % _id)
         runs.update_one({'_id': _id}, {'$unset': {'lock': True}})
         rabbitmq_handling.start_join_request(
             session_id, run['job_id'], _id

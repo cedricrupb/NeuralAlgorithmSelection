@@ -2,14 +2,15 @@ import pika
 import logging
 import json
 import uuid
+import threading
 
 import taskflow.config as cfg
 
 logger = logging.getLogger("mq_handler")
 
 __config__ = {}
-__connection__ = None
-__channel__ = None
+__connection__ = {}
+__channel__ = {}
 __task_setup__ = False
 __request_setup__ = False
 __closed__ = False
@@ -23,8 +24,10 @@ def _setup_connection():
     global __config__
     global __connection__
 
-    if __connection__ is not None:
-        return __connection__
+    thread_id = threading.get_ident()
+
+    if thread_id in __connection__:
+        return __connection__[thread_id]
     rabbit = __config__['message-queue']
     rabbit = rabbit['rabbit-mq']
 
@@ -42,9 +45,9 @@ def _setup_connection():
         )
     )
 
-    __connection__ = pika.BlockingConnection(parameter)
+    __connection__[thread_id] = pika.BlockingConnection(parameter)
 
-    return __connection__
+    return __connection__[thread_id]
 
 
 def _reconnect():
@@ -52,8 +55,8 @@ def _reconnect():
     global __connection__
     global __channel__
 
-    __connection__ = None
-    __channel__ = None
+    __connection__ = {}
+    __channel__ = {}
 
     if __closed__:
         raise ValueError("Connection is closed!")
@@ -63,14 +66,15 @@ def _reconnect():
 
 def _setup_channel():
     global __channel__
+    thread_id = threading.get_ident()
 
-    if __channel__ is not None:
-        return __channel__
+    if thread_id in __channel__:
+        return __channel__[thread_id]
 
     connection = _setup_connection()
-    __channel__ = connection.channel()
+    __channel__[thread_id] = connection.channel()
 
-    return __channel__
+    return __channel__[thread_id]
 
 
 def _setup_task_queue():
@@ -342,9 +346,24 @@ def consume_loop():
     _setup_channel().start_consuming()
 
 
+def close_thread():
+    global __channel__
+    global __connection__
+    thread_id = threading.get_ident()
+
+    if thread_id in __channel__:
+        __channel__[thread_id].close()
+        del __channel__[thread_id]
+
+    if thread_id in __connection__:
+        __connection__[thread_id].close()
+        del __connection__[thread_id]
+
+
 def close_connections():
     global __closed__
     __closed__ = True
     global __connection__
-    if __connection__ is not None:
-        __connection__.close()
+
+    for conn in __connection__.values():
+        conn.close()
