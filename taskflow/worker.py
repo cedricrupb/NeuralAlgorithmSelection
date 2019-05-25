@@ -96,6 +96,8 @@ def _ack(channel, delivery_tag, cb, result):
     def call():
         try:
             cb(result)
+        except Exception:
+            traceback.print_exc()
         finally:
             if channel.is_open:
                 channel.basic_ack(delivery_tag)
@@ -634,7 +636,7 @@ def run_fork_wrap(session_id, _id, db, run, kwargs):
 
     def callback(result):
         runs = db.function_runs
-        if result.startswith("exception:"):
+        if isinstance(result, str) and result.startswith("exception:"):
             logger.error('Error in %s: %s' % (_id, result))
             runs.update_one({'_id': _id}, {'$set': {'error': result}})
 
