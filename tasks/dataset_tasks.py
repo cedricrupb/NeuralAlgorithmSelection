@@ -26,6 +26,7 @@ import networkx as nx
 import numpy as np
 import json
 import random
+import time
 
 
 types_str = {
@@ -169,7 +170,7 @@ def prepare_svcomp_git(competition_year, directory):
 
     if not os.path.exists(git_path):
         global SV_BENCHMARKS_GIT
-        sp_run_success(["git", "clone", SV_BENCHMARKS_GIT, base_path])
+        sp_run_success(["git", "-C", base_path, "clone", SV_BENCHMARKS_GIT])
 
     if not os.path.exists(git_path):
         raise tsk.EnvironmentException(
@@ -268,7 +269,7 @@ def load_svcomp(competition_year, env=None):
 
 
 @task_definition(workload="heavy")
-def code_to_graph(name, competition, env=None):
+def code_to_graph(name, competition, git_init=True, env=None):
     if 'PESCO_PATH' not in os.environ:
         raise tsk.EnvironmentException(
                     "Environment variable PESCO_PATH has to be defined!")
@@ -292,7 +293,12 @@ def code_to_graph(name, competition, env=None):
 
     try:
 
-        git_path = prepare_svcomp_git(info['svcomp'], env.get_host_cache_dir())
+        if git_init:
+            git_path = prepare_svcomp_git(info['svcomp'], env.get_host_cache_dir())
+        else:
+            git_path = os.path.join(env.get_host_cache_dir(),
+                                    "svcomp-git",
+                                    "sv-benchmarks")
         file_path = info['file'].replace("../sv-benchmarks/", "")
         file_path = os.path.join(git_path, file_path)
 
@@ -303,11 +309,15 @@ def code_to_graph(name, competition, env=None):
         out_path = info['name'] + ".json"
         out_path = os.path.join(env.get_cache_dir(), out_path)
 
+        start_time = time.time()
+
         run_pesco(
             pesco_path,
             file_path,
             out_path
         )
+
+        run_time = time.time() - start_time
 
         if not os.path.exists(out_path):
             raise tsk.EnvironmentException(
@@ -324,7 +334,8 @@ def code_to_graph(name, competition, env=None):
             file.close()
 
         svcomp_db.update({'name': info['name'], 'svcomp': info['svcomp']},
-                         {'$set': {'graph_ref': file._id}})
+                         {'$set': {'graph_ref': file._id,
+                                   'run_time': run_time}})
 
     except Exception as e:
         svcomp_db.update({'name': info['name'], 'svcomp': info['svcomp']},
@@ -614,7 +625,7 @@ if __name__ == '__main__':
 
     load = load_svcomp(comp)
     load_it = tsk.fork(load)
-    graph_it = code_to_graph(load_it, comp)
+    graph_it = code_to_graph(load_it, comp, git_init=False)
 
     with openRemoteSession(
         session_id="317e3bb0-caf4-4f57-9975-0e782371a866"

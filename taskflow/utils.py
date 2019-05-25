@@ -43,10 +43,9 @@ def run_command(command, **kwargs):
 
         if set_timeout and timer <= 0:
             process.kill()
-            process.wait()
-            raise sp.TimeoutExpired("Timeout of %i seconds is expired" % timeout)
+            raise sp.TimeoutExpired(command, timeout)
 
         if process.poll():
             raise sp.CalledProcessError(
-                process.returncode, command,
+                process.returncode, command
             )

@@ -37,7 +37,7 @@ def start_mongo():
     if 'execution' not in config:
         return None
 
-    auth = config['execution']
+    auth = config['backend']
     mongodb = auth["mongodb"]
     return setup_client(mongodb["url"], mongodb["auth"])
 
@@ -51,7 +51,7 @@ def get_db():
     if 'execution' not in config:
         return None
 
-    return __db__[__config__['execution']['mongodb']['database']]
+    return __db__[__config__['backend']['mongodb']['database']]
 
 
 def get_config():
@@ -68,5 +68,12 @@ parser.add_argument("name")
 
 args = parser.parse_args()
 
-fs = GridFS(get_db())
-print(fs.find_one({'name': args.name}).read().decode('utf-8'))
+db = get_db()
+
+import taskflow.rabbitmq_handling as rq
+
+for f in db.function_runs.find({'result': {'$exists': 0}, 'sub_id': {'$exists': 0}}):
+    rq.start_run_request(
+        '317e3bb0-caf4-4f57-9975-0e782371a866',
+        f['_id']
+    )

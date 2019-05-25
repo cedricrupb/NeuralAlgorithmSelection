@@ -12,6 +12,8 @@ import pika
 import time
 import importlib
 
+from threading import Thread
+
 import taskflow.rabbitmq_handling as rabbitmq_handling
 from taskflow.backend import ForkResource
 import taskflow.distributed_io as dio
@@ -32,10 +34,12 @@ __config__ = cfg.load_config()
 
 __flushes__ = []
 
+_process_ = None
+
 
 class DelayedUpdate(object):
 
-    def __init__(self, coll, threshold=50):
+    def __init__(self, coll, threshold=20):
         self._coll = coll
         self._updates = []
         self._threshold = threshold
@@ -88,6 +92,65 @@ def get_db():
     return __db__[__config__['backend']['mongodb']['database']]
 
 
+def _ack(channel, delivery_tag, cb, result):
+    def call():
+        try:
+            cb(result)
+        finally:
+            if channel.is_open:
+                channel.basic_ack(delivery_tag)
+            else:
+                pass
+            global _process_
+            _process_ = None
+    return call
+
+
+def _long_run(connection, channel, delivery_tag, task, callback):
+
+    try:
+        res = task()
+    except Exception:
+        res = 'exception:\n'+traceback.format_exc()
+
+    connection.add_callback_threadsafe(_ack(channel,
+                                            delivery_tag,
+                                            callback, res))
+
+
+class MessageHandler(object):
+
+    def __init__(self, channel, delivery_tag):
+        self._channel = channel
+        self._delivery_tag = delivery_tag
+        self._ack = True
+
+    def long_run(self, task, callback):
+        global _process_
+
+        if _process_ is not None:
+            raise ValueError("Only one process can run at time!")
+
+        _process_ = Thread(
+            target=_long_run,
+            args=(
+                rabbitmq_handling.get_connection(),
+                self._channel,
+                self._delivery_tag,
+                task, callback
+            )
+        )
+
+        _process_.start()
+        self._ack = False
+
+    def ack(self):
+        if self._ack:
+            self._channel.basic_ack(
+                delivery_tag=self._delivery_tag
+            )
+
+
 def consume_task(ch, method, properties, body):
     logger.debug("Retrieve task")
 
@@ -103,8 +166,10 @@ def consume_task(ch, method, properties, body):
         ch.basic_reject(delivery_tag=method.delivery_tag)
         return
 
+    mh = MessageHandler(ch, method.delivery_tag)
+
     try:
-        _execute_task(obj)
+        _execute_task(mh, obj)
     except UnknownTaskException:
         traceback.print_exc()
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -114,7 +179,7 @@ def consume_task(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag)
         return
 
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    mh.ack()
 
 
 def log(message):
@@ -160,7 +225,7 @@ class UnknownTaskException(Exception):
     pass
 
 
-def _execute_task(task):
+def _execute_task(mh, task):
     switch = {
         'open_session': open_session,
         'start_job': start_job,
@@ -174,7 +239,7 @@ def _execute_task(task):
     if task['type'] not in switch:
         raise UnknownTaskException(str(task['type'])+' is not implemented.')
 
-    switch[task['type']](task)
+    switch[task['type']](mh, task)
 
 
 # Utils
@@ -280,7 +345,7 @@ def _load_func(name):
     return func
 
 
-def _execute_funcs(calls, kwargs, bindings):
+def _execute_funcs(run_id, calls, kwargs, bindings):
     db = get_db()
     functions = db.functions
 
@@ -308,7 +373,7 @@ def _execute_funcs(calls, kwargs, bindings):
 
         setting = function['backend_setting']
 
-        setting['__logger__'] = build_remote_log(db, function['_id'])
+        setting['__logger__'] = build_remote_log(db, run_id)
 
         result = ex.execute_function(
             func_ref, bind, setting
@@ -322,16 +387,16 @@ def _execute_funcs(calls, kwargs, bindings):
     return bind['__out__']
 
 
-def _build_and_call(db, run, kwargs):
+def _build_and_call(run_id, db, run, kwargs):
     graph = db.function_graph
 
     job = graph.find_one({'_id': run['job_id']})
 
-    return _execute_funcs(job['calls'], kwargs, job['bindings'])
+    return _execute_funcs(run_id, job['calls'], kwargs, job['bindings'])
 
 
 # Step 1
-def open_session(task):
+def open_session(mh, task):
     session_id = task['session']
 
     # Open db connection
@@ -363,7 +428,7 @@ def open_session(task):
 
 
 # Step 2
-def start_job(task):
+def start_job(mh, task):
     session_id = task['session']
     job_id = task['job_id']
 
@@ -466,7 +531,7 @@ def start_job(task):
         graph.update_one({'_id': job_id}, {'$unset': {'lock': True}})
 
 
-def sub_fork(task):
+def sub_fork(mh, task):
     session_id = task['session']
     _id = task['fork_id']
 
@@ -562,7 +627,50 @@ def sub_fork(task):
         runs.update_one({'_id': _id}, {'$unset': {'lock': True}})
 
 
-def run_fork(task):
+def run_fork_wrap(session_id, _id, db, run, kwargs):
+
+    def _run():
+        return _build_and_call(_id, db, run, kwargs)
+
+    def callback(result):
+        runs = db.function_runs
+        if result.startswith("exception:"):
+            logger.error('Error in %s: %s' % (_id, result))
+            runs.update_one({'_id': _id}, {'$set': {'error': result}})
+
+            log({
+                'task': 'fork_execution',
+                'session_id': session_id,
+                'job_id': run['job_id'],
+                'fork_id': _id,
+                'state': 'error'
+            })
+        else:
+            result_ref = dio.store(db, result)
+            runs.update_one({'_id': _id}, {'$set': {'result': result_ref}})
+            logger.info("Successfull finished: %s" % _id)
+
+            log({
+                'task': 'fork_execution',
+                'session_id': session_id,
+                'job_id': run['job_id'],
+                'fork_id': _id,
+                'state': 'success'
+            })
+        global __flushes__
+
+        for fl in __flushes__:
+            fl.flush()
+        __flushes__ = []
+
+        runs.update_one({'_id': _id}, {'$unset': {'lock': True}})
+        rabbitmq_handling.start_join_request(
+            session_id, run['job_id'], _id
+        )
+    return _run, callback
+
+
+def run_fork(mh, task):
     session_id = task['session']
     _id = task['fork_id']
 
@@ -593,54 +701,25 @@ def run_fork(task):
     # Set a lock on document
     runs.update_one({'_id': _id}, {'$set': {'lock': True}})
 
-    try:
+    # Load bindings
+    kwargs = run['binding']
 
-        # Load bindings
-        kwargs = run['binding']
+    for k in list(kwargs.keys()):
+        logger.debug("Load resoruce %s" % kwargs[k])
+        kwargs[k] = dio.load(db, kwargs[k])
 
-        for k in list(kwargs.keys()):
-            logger.debug("Load resoruce %s" % kwargs[k])
-            kwargs[k] = dio.load(db, kwargs[k])
+    logger.info("Finished loading input [id = %s]" % _id)
 
-        logger.info("Finished loading input [id = %s]" % _id)
+    task, cb = run_fork_wrap(
+        session_id, _id, db, run, kwargs
+    )
 
-        try:
-            result = _build_and_call(db, run, kwargs)
-
-            result_ref = dio.store(db, result)
-            runs.update_one({'_id': _id}, {'$set': {'result': result_ref}})
-            logger.info("Successfull finished: %s" % _id)
-
-            log({
-                'task': 'fork_execution',
-                'session_id': session_id,
-                'job_id': run['job_id'],
-                'fork_id': _id,
-                'state': 'success'
-            })
-        except Exception:
-            trace = traceback.format_exc()
-            logger.error('Error in %s: %s' % (_id, trace))
-            runs.update_one({'_id': _id}, {'$set': {'error': trace}})
-
-            log({
-                'task': 'fork_execution',
-                'session_id': session_id,
-                'job_id': run['job_id'],
-                'fork_id': _id,
-                'state': 'error'
-            })
-
-        rabbitmq_handling.start_join_request(
-            session_id, run['job_id'], _id
-        )
-
-    finally:
-        # Unlock
-        runs.update_one({'_id': _id}, {'$unset': {'lock': True}})
+    mh.long_run(
+        task, cb
+    )
 
 
-def join_forks(task):
+def join_forks(mh, task):
 
     session = task['session']
     _id = task['run_id']
@@ -747,7 +826,7 @@ def join_forks(task):
         })
 
 
-def close_job(task):
+def close_job(mh, task):
     session = task['session']
     job_id = task['job_id']
 
@@ -774,13 +853,6 @@ def close_job(task):
         'state': 'finished'
     })
 
-    global __flushes__
-
-    for fl in __flushes__:
-        fl.flush()
-    __flushes__ = []
-
-
     if len(job['outgoing']) == 0:
         rabbitmq_handling.close_session(session)
     else:
@@ -790,7 +862,7 @@ def close_job(task):
             )
 
 
-def close_session(task):
+def close_session(mh, task):
     session = task['session']
 
     # Open db

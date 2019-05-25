@@ -154,6 +154,10 @@ def _savely_send(send_func, session_id, msg, tries=5):
         _savely_send(send_func, session_id, msg, tries - 1)
 
 
+def get_connection():
+    return _setup_connection()
+
+
 def start_session_request(session_id):
     _savely_send(
         _send_task, session_id, {
