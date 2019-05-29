@@ -4,6 +4,7 @@ from pymongo import MongoClient
 
 import argparse
 from gridfs import GridFS
+from tqdm import tqdm
 
 __config__ = None
 
@@ -37,7 +38,7 @@ def start_mongo():
     if 'execution' not in config:
         return None
 
-    auth = config['backend']
+    auth = config['execution']
     mongodb = auth["mongodb"]
     return setup_client(mongodb["url"], mongodb["auth"])
 
@@ -51,7 +52,7 @@ def get_db():
     if 'execution' not in config:
         return None
 
-    return __db__[__config__['backend']['mongodb']['database']]
+    return __db__[__config__['execution']['mongodb']['database']]
 
 
 def get_config():
@@ -69,11 +70,4 @@ parser.add_argument("name")
 args = parser.parse_args()
 
 db = get_db()
-
-import taskflow.rabbitmq_handling as rq
-
-for f in db.function_runs.find({'result': {'$exists': 0}, 'sub_id': {'$exists': 0}}):
-    rq.start_run_request(
-        '317e3bb0-caf4-4f57-9975-0e782371a866',
-        f['_id']
-    )
+db['fs.files'].update_many({"app_type": {"$exists": 0}}, {"$set": {"app_type": "code_graph", "competition": "2019"}})

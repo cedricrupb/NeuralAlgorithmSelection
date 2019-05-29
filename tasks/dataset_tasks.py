@@ -23,9 +23,7 @@ from gridfs import GridFS
 import shutil
 
 import networkx as nx
-import numpy as np
 import json
-import random
 import time
 
 
@@ -289,7 +287,8 @@ def code_to_graph(name, competition, git_init=True, env=None):
         return info['graph_ref']
 
     fs = GridFS(env.get_db())
-    ret = fs.find_one({'name': info['name']})
+    ret = fs.find_one({'name': info['name'], 'app_type': 'code_graph',
+                       'competition': competition})
 
     if ret is not None:
         svcomp_db.update_many({'name': info['name'], 'svcomp': info['svcomp']},
@@ -332,7 +331,10 @@ def code_to_graph(name, competition, git_init=True, env=None):
                 "Pesco doesn't seem to be correctly configured! No output for %s" % info['name']
             )
 
-        file = fs.new_file(name=info['name'], competition=info['svcomp'], encoding="utf-8")
+        file = fs.new_file(name=info['name'],
+                           competition=info['svcomp'],
+                           app_type='code_graph',
+                           encoding="utf-8")
 
         try:
             with open(out_path, "r") as i:
@@ -358,6 +360,25 @@ def is_forward_and_parse(e):
     return e[2:], False
 
 
+def estimate_depth(G, n):
+
+    seen = set([])
+    queue = [(n, 1)]
+
+    while len(queue) > 0:
+        v, depth = queue.pop()
+
+        if v in seen:
+            continue
+        seen.add(v)
+
+        G.nodes[v]['depth'] = depth
+
+        for u, _ in G.in_edges(v):
+            if u not in seen:
+                queue.append((u, depth + 1))
+
+
 def parse_dfs_nx_alt(R):
     if R is None:
         return nx.MultiDiGraph()
@@ -378,6 +399,8 @@ def parse_dfs_nx_alt(R):
             s = n.split("_")
             if len(s) == 2:
                 graph.add_edge(n, s[0], key="s")
+                graph.nodes[s[0]]['depth'] = 0
+                estimate_depth(graph, n)
 
     return graph
 
@@ -394,241 +417,21 @@ def load_graph(task_id, env):
     if info is None:
         raise ValueError("Unknown task id %s" % str(task_id))
 
-    if 'graph_def' not in info:
+    if 'graph_ref' not in info:
         raise ValueError("Graph %s is not computed" % str(info['name']))
 
     fs = GridFS(env.get_db())
-    text = fs.get(info['graph_ref']).decode('utf-8')
-
-    return parse_dfs_nx_alt(json.loads(text))
-
-
-def subsample_graph(graph, root, size):
-
-    if size > len(graph.nodes()):
-        return list(graph.nodes())
-
-    # print("Has to subsample as %i > %i (%s)" % (len(graph.nodes()), size, str(graph.nodes[root]['label'])))
-
-    depths = {}
-    seen = set([])
-
-    queue = [(root, 0)]
-
-    while len(queue) > 0:
-        node, depth = queue.pop()
-
-        if node in seen:
-            continue
-
-        if depth not in depths:
-            depths[depth] = []
-
-        depths[depth].append(node)
-        seen.add(node)
-
-        for v, _ in graph.in_edges(node):
-            queue.append((v, depth + 1))
-
-    sample = []
-
-    i = 0
-    while i < len(depths) and len(sample) + len(depths[i]) <= size:
-        sample.extend(depths[i])
-        i += 1
-
-    if i < len(depths) and size - len(sample) > 0:
-        sample.extend(random.sample(depths[i], size - len(sample)))
-
-    return sample
-
-
-def _simple_linear(graph, root, ast_index, ast_count, depth, sub_sample=50, verbose=False):
-    index = {n: i for i, n in enumerate(subsample_graph(graph, root, sub_sample))}
-
-    A = np.zeros((len(index), len(index)))
-    D = np.zeros((len(index),))
-    X = []
-
-    for n in index.keys():
-        label = graph.nodes[n]['label']
-        x = np.zeros((ast_count,))
-        x[ast_index[label]] = 1
-        X.append(x)
-
-        A[index[n], index[n]] = 1
-
-    for u, v in graph.edges(index.keys()):
-        if v not in index:
-            continue
-        A[index[u], index[v]] = 1
-        A[index[v], index[u]] = 1
-
-    D = np.sum(A, axis=1)
-    D = np.diag(1/np.sqrt(D))
-    S = D.dot(A).dot(D)
-
-    X = np.vstack(X)
-
-    S = np.linalg.matrix_power(S, depth)
-    X = S.dot(X)
-
-    return X[index[root], :]
-
-
-def _compress_node2(graph, n, ast_index, ast_count):
-    ast_set = set([])
-
-    queue = [n]
-
-    while len(queue) > 0:
-        k = queue.pop()
-
-        ast_set.add(k)
-
-        for u, _, label in graph.in_edges(k, keys=True):
-            if label == 's':
-                queue.append(u)
-
-    G_ast = graph.subgraph(ast_set)
-    vec = _simple_linear(G_ast, n, ast_index, ast_count, 6)
-
-    graph.nodes[n]['features'] = vec
-
-    ast_set.remove(n)
-
-    return ast_set
-
-
-def compress_graph(graph, ast_index, ast_count):
-    if 'count' not in ast_index:
-        ast_index['count'] = 0
-
-    for n in graph.nodes():
-        node = graph.nodes[n]
-        label = node['label']
-        if label not in ast_index:
-            ast_index[label] = ast_index['count']
-            ast_index['count'] += 1
-
-    if ast_index['count'] > ast_count:
-        raise ValueError("Detect at least %i AST labels" % ast_index['count'])
-
-    cfg_nodes = set([])
-
-    for u, v, label in graph.edges(keys=True):
-        if label == 'cfg':
-            cfg_nodes.add(u)
-            cfg_nodes.add(v)
-
-    ast = set([])
-    for cfg_node in cfg_nodes:
-        ast = ast.union(
-            _compress_node2(graph, cfg_node, ast_index, ast_count)
-        )
-
-    graph.remove_nodes_from(ast)
-
-    feature_index = {
-        'cfg': 0,
-        'dd': 1,
-        'cd': 2,
-        'cd_f': 2,
-        'cd_t': 2
-    }
-
-    for u, v, key in graph.edges(keys=True):
-        if key == 'du':
-            continue
-        feature = np.zeros((3,))
-        feature[feature_index[key]] = 1
-        graph.edges[u, v, key]['features'] = feature
-
-
-def to_custom_dict(graph):
-    count = 0
-    node_index = {}
-
-    node_array = []
-
-    for n, features in graph.nodes(data='features'):
-        node_index[n] = count
-        count += 1
-
-        if features is None:
-            continue
-
-        node_embed = []
-        for i in range(features.shape[0]):
-            val = features[i]
-            if val > 0:
-                node_embed.append((i, val))
-        node_array.append(node_embed)
-
-    # node_array = np.vstack(node_array)
-
-    feature_index = {
-        'cfg': 0,
-        'dd': 1,
-        'cd': 2,
-        'cd_f': 2,
-        'cd_t': 2
-    }
-
-    edges = []
-
-    for u, v, key in graph.edges(keys=True):
-        if key == 'du':
-            continue
-        uix = node_index[u]
-        vix = node_index[v]
-        keyix = feature_index[key]
-        edges.append((uix, vix, keyix))
-
-    return {
-        'nodes': node_array,
-        'edges': edges
-    }
-
-
-@task_definition(timeout=600)
-def ast_features_graph(task_id, sub_sample, env=None):
-    graph = load_graph(task_id, env)
-
-    db = env.get_db()
-    cache = db.cache
-
-    ast_index = {}
-    ast_count = 158
-    p = cache.find_one({'_id': 'ast_index'})
-
-    if p is not None:
-        ast_index = p['value']
-
-    try:
-
-        compress_graph(graph, ast_index, ast_count)
-
-        graph_repr = json.dumps(
-            to_custom_dict(graph)
-        )
-
-        fs = GridFS(env.get_db())
-
-    finally:
-        cache.update_one({'_id': 'ast_index'},
-                         {'$set': {'value': ast_index}},
-                         upsert=True)
-
-
-@task_definition(timeout=600)
-def ast_features_bag(task_id, depth, env=None):
-    pass
+    text = fs.get(info['graph_ref']).read().decode('utf-8')
+
+    G = parse_dfs_nx_alt(json.loads(text))
+    G.graph['name'] = info['name']
+    G.graph['reference'] = info['graph_ref']
+    return G
 
 
 if __name__ == '__main__':
 
-    comp = "2019"
+    comp = "2018"
 
     load = load_svcomp(comp)
     load_it = tsk.fork(load)
