@@ -20,3 +20,5 @@ tqdm==4.31.1
 Werkzeug==0.15.2
 pytest==4.5.0
 requests==2.22.0
+scikit-learn==0.21.2
+tensorflow-datasets==1.0.2

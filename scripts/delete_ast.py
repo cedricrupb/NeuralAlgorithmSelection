@@ -64,10 +64,12 @@ def get_config():
     return __config__
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("name")
-
-args = parser.parse_args()
-
 db = get_db()
-db.ast_bag.update_many({}, {"$set": {"competition": "2019"}})
+graph = db.ast_graph
+cur = graph.find({'competition': '2018'})
+
+fs = GridFS(db)
+
+for obj in tqdm(cur, total=cur.count()):
+    fs.delete(obj['graph_ref'])
+    graph.delete_one({'_id': obj['_id']})

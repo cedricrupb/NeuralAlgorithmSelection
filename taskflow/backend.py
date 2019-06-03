@@ -407,7 +407,7 @@ class SessionInstance(object):
 
     def run(self, symbolic):
 
-        if not isinstance(symbolic, list):
+        if not isinstance(symbolic, list) and not isinstance(symbolic, tuple):
             symbolic = [symbolic]
 
         graph = self._build_graph(symbolic)

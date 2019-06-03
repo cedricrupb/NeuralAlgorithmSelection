@@ -234,12 +234,14 @@ def to_custom_dict(graph):
     }
 
 
-def collect_statistics(db, G):
+def collect_statistics(db, G, task_info):
     name = G.graph['name']
 
     graph_stats = db.graph_statistics
 
-    if graph_stats.find_one({'_id': name}) is not None:
+    if graph_stats.find_one({'name': name,
+                            'competition': task_info['svcomp']}) is not None:
+        print("Statistics for %s already exists." % name)
         return
 
     ast_nodes = 0
@@ -271,7 +273,8 @@ def collect_statistics(db, G):
 
     try:
         graph_stats.insert_one({
-            '_id': name,
+            'name': name,
+            'competition': task_info['svcomp'],
             'ast_nodes': ast_nodes,
             'cfg_nodes': cfg_nodes,
             'cfg_edges': cfg_edges,
@@ -280,6 +283,8 @@ def collect_statistics(db, G):
             'max_out_degree': max_out_degree
         })
     except Exception:
+        print("Fail stats")
+        traceback.print_exc()
         pass
 
 
@@ -305,7 +310,10 @@ def ast_features_graph(task_id, sub_sample, env=None):
     graph = load_graph(task_id, env)
 
     db = env.get_db()
-    collect_statistics(db, graph)
+    task_info = db.svcomp.find_one({'_id': task_id})
+
+    print("Statistics")
+    collect_statistics(db, graph, task_info)
 
     ast_graph = db.ast_graph
     cache = db.cache
@@ -315,6 +323,7 @@ def ast_features_graph(task_id, sub_sample, env=None):
     ast = ast_graph.find_one({'_id': id})
 
     if ast is not None:
+        print("Already found ast_graph for id %s [comp: %s]" % (id, ast['competition']))
         return ast['_id']
 
     ast_index = {}
@@ -323,7 +332,9 @@ def ast_features_graph(task_id, sub_sample, env=None):
 
     if p is not None:
         ast_index = p['value']
+        ast_count = ast_index['count']
 
+    print("Start")
     try:
 
         start_time = time.time()
@@ -339,11 +350,13 @@ def ast_features_graph(task_id, sub_sample, env=None):
         graph_id = ObjectId()
 
         try:
+            print("Insert")
             ast_graph.insert_one({
                 '_id': id,
                 'name': graph.graph['name'],
                 'sub_sample': sub_sample,
                 'max_ast': ma,
+                'competition': task_info['svcomp'],
                 'run_time': run_time,
                 'graph_ref': graph_id
             })
@@ -355,6 +368,7 @@ def ast_features_graph(task_id, sub_sample, env=None):
             )
         except Exception:
             traceback.print_exc()
+            print("Fail")
 
     finally:
         cache.update_one({'_id': 'ast_index'},
@@ -367,7 +381,9 @@ def ast_features_bag(task_id, sub_sample, env=None):
     graph = load_graph(task_id, env)
 
     db = env.get_db()
-    collect_statistics(db, graph)
+
+    task_info = db.svcomp.find_one({'_id': task_id})
+    collect_statistics(db, graph, task_info)
 
     ast_graph = db.ast_bag
     cache = db.cache
@@ -377,6 +393,7 @@ def ast_features_bag(task_id, sub_sample, env=None):
     ast = ast_graph.find_one({'_id': id})
 
     if ast is not None:
+        print("Already found ast bag for id %s [comp: %s]" % (id, ast['competition']))
         return ast['_id']
 
     ast_index = {}
@@ -385,6 +402,7 @@ def ast_features_bag(task_id, sub_sample, env=None):
 
     if p is not None:
         ast_index = p['value']
+        ast_count = ast_index['count']
 
     try:
 
@@ -405,6 +423,7 @@ def ast_features_bag(task_id, sub_sample, env=None):
                 '_id': id,
                 'name': graph.graph['name'],
                 'sub_sample': sub_sample,
+                'competition': task_info['svcomp'],
                 'max_ast': ma,
                 'run_time': run_time,
                 'graph_ref': graph_id
@@ -489,7 +508,9 @@ def wl_features_bag(task_id, iteration, depth, env=None):
     graph = load_graph(task_id, env)
 
     db = env.get_db()
-    collect_statistics(db, graph)
+    task_info = db.svcomp.find_one({'_id': task_id})
+
+    collect_statistics(db, graph, task_info)
 
     ast_graph = db.wl_features
 
@@ -498,6 +519,7 @@ def wl_features_bag(task_id, iteration, depth, env=None):
     ast = ast_graph.find_one({'_id': id})
 
     if ast is not None:
+        print("Already found wl features for id %s [comp: %s]" % (id, ast['competition']))
         return ast['_id']
 
     start_time = time.time()
@@ -521,6 +543,8 @@ def wl_features_bag(task_id, iteration, depth, env=None):
         ast_graph.insert_one({
             '_id': id,
             'run_time': run_time,
+            'name': task_info['name'],
+            'competition': task_info['svcomp'],
             'wl_refs': refs
         })
 
@@ -529,7 +553,7 @@ def wl_features_bag(task_id, iteration, depth, env=None):
 
 
 if __name__ == '__main__':
-    ids = load_svcomp_ids("2019")
+    ids = load_svcomp_ids("2018")
     id_it = tsk.fork(ids)
     cgraph = ast_features_graph(id_it, 5000)
     cbag = ast_features_bag(id_it, 5000)
@@ -539,4 +563,4 @@ if __name__ == '__main__':
     with openRemoteSession(
         session_id="317e3bb0-caf4-4f57-9975-0e782371a866"
     ) as sess:
-        sess.run(cgraph)
+        sess.run(m)
