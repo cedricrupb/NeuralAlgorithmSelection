@@ -6,9 +6,23 @@ from tqdm import tqdm
 import numpy as np
 
 
+def build_filter_func(filter):
+
+    if filter is not None:
+        filter = set(filter)
+
+        def filter_func(X):
+            return X in filter
+    else:
+        def filter_func(X):
+            return True
+
+    return filter_func
+
+
 @task_definition()
 def train_test(key, competition, test_ratio=0.1,
-               category=None, env=None):
+               category=None, filter=None, env=None):
 
     if env is None:
         raise ValueError("train_test_split needs an execution context")
@@ -37,10 +51,13 @@ def train_test(key, competition, test_ratio=0.1,
         }
     ]
 
+    filter = build_filter_func(filter)
+
     names = []
 
     for name_obj in db.svcomp.aggregate(pipeline):
-        names.append(name_obj['_id'])
+        if filter(name_obj['_id']):
+            names.append(name_obj['_id'])
 
     name_train, name_test = train_test_split(
         names, test_size=test_ratio, random_state=42
@@ -55,27 +72,20 @@ def train_test(key, competition, test_ratio=0.1,
     return name_train, name_test
 
 
-def build_filter_func(filter):
-
-    if filter is not None:
-        filter = set(filter)
-
-        def filter_func(X):
-            return X in filter
-    else:
-        def filter_func(X):
-            return True
-
-    return filter_func
-
-
 @task_definition()
-def tool_coverage(competition, filter=None, category=None, env=None):
+def tool_coverage(competition, filter=None, category=None, env=None,
+                  cache_key=None):
 
     if env is None:
         raise ValueError("train_test_split needs an execution context")
 
     db = env.get_db()
+
+    if cache_key is not None:
+        data_split = db.data_split
+        f = data_split.find_one({'key': cache_key, 'competition': competition})
+        if f is not None and 'min_tool_coverage' in f:
+            return None
 
     search = {
         'svcomp': competition
@@ -126,12 +136,31 @@ def covered_tools(key, competition, coverage, min_coverage=0.8, env=None):
     return tools
 
 
+@task_definition()
+def filter_by_stat(competition, conditions, lesser=True, env=None):
+    if env is None:
+        raise ValueError("train_test_split needs an execution context")
+
+    db = env.get_db()
+    stat = db.graph_statistics
+
+    op = '$lte' if lesser else '$gte'
+    search = {
+        'competition': competition
+    }
+    for key, cond in conditions.items():
+        search[key] = {op: cond}
+
+    return [o['name'] for o in stat.find(search, ['name'])]
+
+
 def get_svcomp_train_test(key, competition, category=None, test_ratio=0.1,
                           min_tool_coverage=0.8):
     split = train_test(key, competition, category=category,
                        test_ratio=test_ratio)
     cov = tool_coverage(
-        competition, filter=split[0], category=category
+        competition, filter=split[0], category=category,
+        cache_key=key
     )
     cov_tools = covered_tools(
         key, competition, cov, min_coverage=min_tool_coverage
@@ -255,10 +284,15 @@ def get_single_label(db, name, competition, category=None):
         ground_truth = sv_obj['ground_truth']
         status = sv_obj['status']
         time = sv_obj['cputime']
+        cat = sv_obj['category']
 
-        if tool not in labels:
-            labels[tool] = {}
-        D = labels[tool]
+        if cat not in labels:
+            labels[cat] = {}
+        cat_labels = labels[cat]
+
+        if tool not in cat_labels:
+            cat_labels[tool] = {}
+        D = cat_labels[tool]
         D['label'], D['time'] = parse_label(status, time, ground_truth)
 
     return labels

@@ -56,7 +56,7 @@ def dummy_composite():
     sup_fork = tsk.fork(sup)
     collect = collect_subgraphs(sup_fork)
     y_it = tsk.fork(range_task(10))
-    collect_1 = collect_subgraphs(collect[0], collect[1], opt=tsk.optional(error()))
+    collect_1 = collect_subgraphs(collect[0], collect[1])
     join = tsk.merge([collect_1], flatten=True)
     return task_print_list(
         join

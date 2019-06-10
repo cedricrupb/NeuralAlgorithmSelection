@@ -21,4 +21,6 @@ Werkzeug==0.15.2
 pytest==4.5.0
 requests==2.22.0
 scikit-learn==0.21.2
-tensorflow-datasets==1.0.2
+tensorflow==1.13.1
+dm-sonnet==1.32
+graph_nets==1.0.4

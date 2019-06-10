@@ -5,6 +5,7 @@ from pymongo import MongoClient
 import argparse
 from gridfs import GridFS
 from tqdm import tqdm
+import os
 
 __config__ = None
 
@@ -65,11 +66,17 @@ def get_config():
 
 
 db = get_db()
-graph = db.ast_bag
-cur = graph.find({})
+graph = db.ast_graph
+cur = graph.find({'competition': '2019'})
 
 fs = GridFS(db)
+dir = "./cache/"
 
 for obj in tqdm(cur, total=cur.count()):
-    fs.delete(obj['graph_ref'])
-    graph.delete_one({'_id': obj['_id']})
+    file = fs.get(obj['graph_ref']).read().decode('utf-8')
+    path = os.path.join(dir, obj['competition'])
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    path = os.path.join(path, obj['name']+".json")
+    with open(path, "w") as o:
+        o.write(file)

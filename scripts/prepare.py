@@ -100,4 +100,4 @@ def explore(tool1, tool2):
     plt.show()
 
 if __name__ == "__main__":
-    explore("Klee", "ESBMC-incr")
+    train_test()

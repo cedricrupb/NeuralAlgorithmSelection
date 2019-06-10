@@ -1,8 +1,7 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
 
-from tasks.train_utils import get_labels, get_preferences, get_ranking, index,\
-                              get_svcomp_train_test
+from tasks import train_utils as tu
 
 import os
 import numpy as np
@@ -91,14 +90,14 @@ def _localize_label(db, path, index, competition, tools, category=None):
 
     index = {t: i for i, t in enumerate(index)}
 
-    labels = get_labels(db, competition, category, index)
+    labels = tu.get_labels(db, competition, category, index)
     out = {}
 
     for category, D in labels.items():
         if category not in out:
             out[category] = {}
         for name, V in D.items():
-            pref = get_preferences(V, tools)
+            pref = tu.get_preferences(V, tools)
             out[category][name] = {
                 'pref': pref.tolist(),
                 'pos': index[name]
@@ -173,7 +172,7 @@ def rank_score(y_true, y_pred, tools):
 
     return [
         spearmann_score(
-            get_ranking(y_pred[i, :], tools), get_ranking(y_true[i, :], tools)
+            tu.get_ranking(y_pred[i, :], tools), tu.get_ranking(y_true[i, :], tools)
         )
         for i in range(y_true.shape[0])
     ]
@@ -268,14 +267,27 @@ def lr_train_test(key, tools, train_index, test_index, competition,
 
 
 if __name__ == '__main__':
-    dataset_key = 'initial_overflow'
-    lr_key = "initial_overflow_0"
+    dataset_key = '2019_reachability_all_10000'
+    lr_key = 'tmp_test_0'
+    limit = 10000
     competition = "2019"
-    category = "overflow"
+    category = "reachability"
 
-    tools, train_index, test_index = get_svcomp_train_test(
-        dataset_key, competition, category, test_ratio=0.2
+    condition = {}
+    for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
+        condition[key] = limit
+
+    filter = tu.filter_by_stat("2018", condition)
+    split = tu.train_test(dataset_key, competition, category=category,
+                          test_ratio=0.2, filter=filter)
+    cov = tu.tool_coverage(
+            competition, filter=split[0], category=category
     )
+    tools = tu.covered_tools(
+        dataset_key, competition, cov, min_coverage=0.8
+    )
+
+    train_index, test_index = split[0], split[1]
 
     lr = lr_train_test(
         lr_key, tools, train_index, test_index,

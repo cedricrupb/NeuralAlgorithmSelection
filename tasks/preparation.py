@@ -558,7 +558,7 @@ if __name__ == '__main__':
     cgraph = ast_features_graph(id_it, 5000)
     cbag = ast_features_bag(id_it, 5000)
     wl = wl_features_bag(id_it, 5, 5)
-    m = tsk.merge([cgraph, cbag, wl])
+    m = tsk.merge([cgraph])
 
     with openRemoteSession(
         session_id="317e3bb0-caf4-4f57-9975-0e782371a866"

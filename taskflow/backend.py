@@ -270,10 +270,14 @@ def _execute_graph(seq_graph):
     queue = [0]
 
     bindings = {0: {}}
+    execs = set([])
 
     while len(queue) > 0:
         id = queue.pop()
         bind = bindings[id]
+
+        if id in execs:
+            continue
 
         apply = True
 
@@ -291,6 +295,7 @@ def _execute_graph(seq_graph):
             continue
 
         result = _execute_node(seq_graph, id, bind)['__out__']
+        execs.add(id)
 
         for _, v, dest in seq_graph.out_edges(id, data='dest'):
             if v not in bindings:
