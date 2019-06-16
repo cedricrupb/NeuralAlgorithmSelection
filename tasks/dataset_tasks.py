@@ -179,7 +179,7 @@ def prepare_svcomp_git(competition_year, directory):
     return git_path
 
 
-def run_pesco(pesco_path, in_file, out_file, heap="10g", timeout=900):
+def run_pesco(pesco_path, in_file, out_file, pos_path=None, heap="10g", timeout=900):
     path_to_source = in_file
 
     run_path = os.path.join(pesco_path, "scripts", "cpa.sh")
@@ -191,14 +191,19 @@ def run_pesco(pesco_path, in_file, out_file, heap="10g", timeout=900):
     if not (os.path.isfile(path_to_source) and (path_to_source.endswith('.i') or path_to_source.endswith('.c'))):
         raise ValueError('path_to_source is no valid filepath. [%s]' % path_to_source)
 
+    cmd = [run_path,
+           "-graphgen",
+           "-heap", heap,
+           "-Xss512k",
+           "-setprop", "neuralGraphGen.output="+output_path]
+
+    if pos_path is not None:
+        cmd.extend(["-setprop", "neuralGraphGen.nodePosition="+pos_path])
+
+    cmd.append(path_to_source)
+
     proc = utils.run_command(
-                    [run_path,
-                     "-graphgen",
-                     "-heap", heap,
-                     "-Xss512k",
-                     "-setprop", "neuralGraphGen.output="+output_path,
-                     path_to_source
-                     ],
+                    cmd,
                     timeout=timeout
                     )
 

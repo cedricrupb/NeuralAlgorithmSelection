@@ -30,6 +30,10 @@ def optional(func):
     return sym.optional(func)
 
 
+def scatter(iterable, buckets):
+    return sym.scatter(iterable, buckets)
+
+
 def _expand_var(key, value):
     if isinstance(value, sym.Symbolic):
         yield key, value

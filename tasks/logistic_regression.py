@@ -267,17 +267,17 @@ def lr_train_test(key, tools, train_index, test_index, competition,
 
 
 if __name__ == '__main__':
-    dataset_key = '2019_reachability_all_10000'
+    dataset_key = '2019_all_categories_all_10000'
     lr_key = 'tmp_test_0'
     limit = 10000
     competition = "2019"
-    category = "reachability"
+    category = None
 
     condition = {}
     for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
         condition[key] = limit
 
-    filter = tu.filter_by_stat("2018", condition)
+    filter = tu.filter_by_stat(competition, condition)
     split = tu.train_test(dataset_key, competition, category=category,
                           test_ratio=0.2, filter=filter)
     cov = tu.tool_coverage(

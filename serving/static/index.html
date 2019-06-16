@@ -1,0 +1,102 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="semantic/dist/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="css/main.css">
+    <link rel="stylesheet" type="text/css" href="css/codemirror.css">
+    <script
+    src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+    crossorigin="anonymous"></script>
+    <script src="semantic/dist/semantic.min.js"></script>
+    <title>NAS Serving</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.7.1/cytoscape.min.js">
+    </script>
+    <script src="js/codemirror.js"></script>
+    <script src="js/mode/clike/clike.js"></script>
+    <script src="js/search/searchcursor.js"></script>
+    <script src="js/selection/mark-selection.js"></script>
+    <script src="js/index.js"></script>
+  </head>
+  <body>
+    <div id="fail" class="ui negative hidden message">
+      <i class="close icon"></i>
+      <div class="header">
+        Cannot connect with server.
+      </div>
+    </div>
+    <div id="main" class="ui segment">
+      <h3 class="ui block header" id="head">Neural Algorithm Selection</h3>
+
+      <div id="left_area">
+      <div id="code" class="ui segment">
+        <h4 class="ui header">
+          <i class="code icon"></i>
+          <div class="content"> Code editor </div>
+        </h4>
+        <div id="category" class="ui selection dropdown">
+          <i class="dropdown icon"></i>
+          <div class="text">reachability</div>
+          <div class="menu">
+            <div class="active item">reachability</div>
+            <div class="item">termination</div>
+            <div class="item">memory</div>
+            <div class="item">overflow</div>
+          </div>
+        </div>
+          <textarea id="codeinput">
+int main() {
+  fib(5);
+  return 0;
+}
+
+int fib(int i){
+
+  if(i <= 1){
+    return 1;
+  }
+
+  return fib(i - 1) + fib(i - 2);
+}</textarea>
+      </div>
+
+      <div id="predict" class="ui segment">
+        <div id="dataset" class="ui selection dropdown">
+          <i class="dropdown icon"></i>
+          <div class="default text">Select Dataset</div>
+          <div class="menu"></div>
+        </div>
+        <div id="model" class="ui disabled selection dropdown">
+          <i class="dropdown icon"></i>
+          <div class="default text">Select Model</div>
+          <div class="menu"></div>
+        </div>
+        <button class="ui disabled primary button" id="send" onclick="predict()">Predict</button>
+      </div>
+    </div>
+
+      <div id="select">
+
+        <div id="recommend" class="ui segments">
+          <div id="graph_draw" class="ui segment"></div>
+          <div id="prediction" class="ui secondary segment">
+            Prediction is not finished.
+          </div>
+          <div class="ui active dimmer">
+            <h2 class="ui inverted header">Press predict!</h2>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <script>
+        var myTextarea = document.getElementById('codeinput');
+        var editor = CodeMirror.fromTextArea(myTextarea, {
+          lineNumbers: true,
+          mode: "text/x-csrc",
+          styleSelectedText: true
+        });
+        editor.setSize("95%", "90%");
+        initSite();
+    </script>
+  </body>
+</html>

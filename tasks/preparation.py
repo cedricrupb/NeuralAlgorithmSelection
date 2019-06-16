@@ -170,6 +170,12 @@ def compress_graph(graph, ast_index, ast_count, compress_func):
 
     graph.remove_nodes_from(ast)
 
+    for n in graph.nodes():
+        node = graph.nodes[n]
+        if 'features' not in node:
+            node['features'] = np.zeros((ast_count,))
+            node['features'][ast_index[node['label']]] = 1
+
     feature_index = {
         'cfg': 0,
         'dd': 1,
@@ -188,11 +194,12 @@ def compress_graph(graph, ast_index, ast_count, compress_func):
     return max_ast
 
 
-def to_custom_dict(graph):
+def to_custom_dict(graph, attr={}, return_index=False):
     count = 0
     node_index = {}
 
     node_array = []
+    attr_array = []
 
     for n, features in graph.nodes(data='features'):
         node_index[n] = count
@@ -207,6 +214,12 @@ def to_custom_dict(graph):
             if val > 0:
                 node_embed.append((i, val))
         node_array.append(node_embed)
+
+        if len(attr) > 0:
+            if n in attr:
+                attr_array.append(attr[n])
+            else:
+                attr_array.append(None)
 
     # node_array = np.vstack(node_array)
 
@@ -228,10 +241,18 @@ def to_custom_dict(graph):
         keyix = feature_index[key]
         edges.append((uix, vix, keyix))
 
-    return {
+    res = {
         'nodes': node_array,
         'edges': edges
     }
+
+    if len(attr_array) > 0:
+        res['attributes'] = attr_array
+
+    if return_index:
+        return res, node_index
+
+    return res
 
 
 def collect_statistics(db, G, task_info):
@@ -545,6 +566,7 @@ def wl_features_bag(task_id, iteration, depth, env=None):
             'run_time': run_time,
             'name': task_info['name'],
             'competition': task_info['svcomp'],
+            'max_depth': depth,
             'wl_refs': refs
         })
 
@@ -558,7 +580,7 @@ if __name__ == '__main__':
     cgraph = ast_features_graph(id_it, 5000)
     cbag = ast_features_bag(id_it, 5000)
     wl = wl_features_bag(id_it, 5, 5)
-    m = tsk.merge([cgraph])
+    m = tsk.merge([cbag])
 
     with openRemoteSession(
         session_id="317e3bb0-caf4-4f57-9975-0e782371a866"

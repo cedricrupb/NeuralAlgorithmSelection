@@ -6,7 +6,6 @@ import time
 import datetime
 import torch as th
 from torch.nn import functional as F
-from sklearn.metrics import precision_recall_fscore_support as prf
 
 import random
 
@@ -100,20 +99,18 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-class Custom_BCE(th.nn.Module):
+class Rank_BCE(th.nn.Module):
 
     def __init__(self):
         super().__init__()
 
     def forward(self, x, y):
-        y = y.unsqueeze(1)
-        x = x.unsqueeze(1)
 
         filt = th.abs(2 * y - 1)
+        x = filt * x
+        y = filt * y
 
-        neg_abs = - x.abs()
-        loss = filt * (x.clamp(min=0) - x * y + (1 + neg_abs.exp()).log())
-        return loss.mean()
+        return F.binary_cross_entropy_with_logits(x, y)
 
 
 class MLP(th.nn.Module):
@@ -137,6 +134,27 @@ class MLP(th.nn.Module):
 
         return out
 
+
+def precision(pred, target):
+    tp = (pred == 1 and target == 1).sum().item()
+    fp = (pred == 1 and target == 0).sum().item()
+    return tp / (tp + fp)
+
+
+def recall(pred, target):
+    tp = (pred == 1 and target == 1).sum().item()
+    fn = (pred == 0 and target == 1).sum().item()
+
+    return tp / (tp + fn)
+
+
+def f1_score(pred, target):
+    p = precision(pred, target)
+    r = recall(pred, target)
+    f = 2*(p * r)/(p + r)
+    return f, p, r
+
+
 if __name__ == '__main__':
 
     learning_rate = 0.001
@@ -155,7 +173,7 @@ if __name__ == '__main__':
 
     device = th.device('cpu')
     model = model.to(device)
-    bce = Custom_BCE().to(device)
+    bce = Rank_BCE().to(device)
     optimizer = th.optim.Adam(model.parameters(), lr=0.1, weight_decay=C)
 
     index = list(range(X.shape[0]))
@@ -169,9 +187,7 @@ if __name__ == '__main__':
             yb = th.reshape(yb, [yb.shape[0], 1])
             optimizer.zero_grad()
             out = model(Xb)
-            loss = F.binary_cross_entropy_with_logits(
-                out, yb, pos_weight=th.tensor([938/2628])
-            )
+            loss = bce(out, yb)
             loss.backward()
             # print("It %d Loss %f" % (i, loss.item()))
             optimizer.step()
@@ -181,9 +197,8 @@ if __name__ == '__main__':
             testo = th.sigmoid(testo)
             testo = th.round(testo)
             ya = th.reshape(yt, testo.shape)
-            f1, pr, re, _ = prf(ya.numpy(), testo.detach().numpy(), average='micro')
+            test_acc = (testo == ya).float().mean().item()
             traino = th.round(th.sigmoid(model(X)))
             ya = th.reshape(y, traino.shape)
             train_acc = (traino == ya).float().mean().item()
-            print("Epoch %d Train Accuracy %f Test Precision %f Test Recall %f Test F1 %f"
-                  % (ep, train_acc, pr, re, f1))
+            print("Epoch %d Train Accuracy %f Test Accuracy %f" % (ep, train_acc, test_acc))

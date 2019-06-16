@@ -183,19 +183,36 @@ def edges_to_tensor_unsafe(edge_attr):
     return sp.to_dense().transpose(0, 1)
 
 
+def plain_category_to_tensor(cat):
+
+    if cat == 'reachability':
+        return [[1, 0, 0, 0]]
+
+    if cat == 'termination':
+        return [[0, 1, 0, 0]]
+
+    if cat == 'memory':
+        return [[0, 0, 1, 0]]
+
+    if cat == 'overflow':
+        return [[0, 0, 0, 1]]
+
+    raise ValueError("Category %s not supported." % str(cat))
+
+
 def category_to_tensor(cat):
 
     if cat == gd.SVGraph.Category.Value('reachability'):
-        return [1, 0, 0, 0]
+        return [[1, 0, 0, 0]]
 
     if cat == gd.SVGraph.Category.Value('termination'):
-        return [0, 1, 0, 0]
+        return [[0, 1, 0, 0]]
 
     if cat == gd.SVGraph.Category.Value('memory'):
-        return [0, 0, 1, 0]
+        return [[0, 0, 1, 0]]
 
     if cat == gd.SVGraph.Category.Value('overflow'):
-        return [0, 0, 0, 1]
+        return [[0, 0, 0, 1]]
 
     raise ValueError("Category %s not supported." % str(cat))
 
@@ -222,6 +239,48 @@ def proto_to_data(proto, features=148):
 
     return Data(x=x, edge_index=edge_index, edge_attr=edge_attr,
                 y=y, category=cat)
+
+
+def proto_to_sparse(proto, features=148):
+
+    offset = th.LongTensor(proto.nodes.row)
+    _, offset = th.unique_consecutive(offset, return_counts=True)
+    offset = th.cat((th.LongTensor([0]), offset[:-1]), 0)
+
+    index = th.LongTensor(proto.nodes.column)
+    nodes = th.FloatTensor(proto.nodes.content)
+
+    edge_index = th.LongTensor([proto.edges.row, proto.edges.column])
+    edge_attr = th.tensor(
+       [edge_type_to_tensor_unsafe(t) for t in proto.edges.types],
+       dtype=th.int32
+    )
+
+    y = th.tensor(proto.preferences, dtype=th.float)
+    y = y.unsqueeze(0)
+    cat = th.tensor(category_to_tensor(proto.category), dtype=th.int32)
+
+    return Data(sparse_index=index, offset=offset,
+                weight=nodes,
+                edge_index=edge_index, edge_attr=edge_attr,
+                y=y, category=cat)
+
+
+def proto_to_flat(proto, features=148):
+
+    nodes_len = max(proto.nodes.row)+1
+    index = th.LongTensor([proto.nodes.row, proto.nodes.column])
+    nodes = th.FloatTensor(proto.nodes.content)
+
+    x = th.sparse.FloatTensor(index, nodes, th.Size([nodes_len, features]))
+    del index, nodes
+    x = x.to_dense().sum(dim=0)
+    x = x.unsqueeze(0)
+
+    y = th.tensor(proto.preferences, dtype=th.float)
+    y = y.unsqueeze(0)
+
+    return Data(x=x, y=y)
 
 
 def bin_to_data(bin):
@@ -331,10 +390,39 @@ class BufferedDataset(Dataset):
 
 class GraphDataset(LMDBDataset):
 
+    def __init__(self, root, base_db, shuffle=False, transform=None,
+                 sparse=False):
+
+        def chain_transform(x):
+
+            x = bin_to_data(x)
+
+            if transform is not None:
+                return transform(x)
+            return x
+
+        def chain_transform_sparse(x):
+
+            x = proto_to_sparse(bin_to_proto(x))
+
+            if transform is not None:
+                return transform(x)
+            return x
+
+        t = chain_transform_sparse if sparse else chain_transform
+
+        super().__init__(root, base_db, shuffle, transform=t)
+
+    def __name__(self):
+        return 'GraphDataset'
+
+
+class GraphFlatDataset(LMDBDataset):
+
     def __init__(self, root, base_db, shuffle=False, transform=None):
 
         def chain_transform(x):
-            x = bin_to_data(x)
+            x = proto_to_flat(bin_to_proto(x))
             if transform is not None:
                 return transform(x)
             return x

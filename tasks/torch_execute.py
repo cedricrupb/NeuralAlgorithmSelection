@@ -2,14 +2,18 @@ import taskflow as tsk
 from taskflow import task_definition, backend
 
 from tasks import train_utils, proto_data
-from tasks import rank_scores
+from tasks import rank_scores, element_scores
 from tasks.torch_model import build_model_from_config
 
 import torch as th
 from torch_geometric.data import DataLoader
+from gridfs import GridFS
 
 import numpy as np
 import time
+import os
+import math
+import shutil
 
 
 class TrainLogger:
@@ -36,16 +40,61 @@ class Rank_BCE(th.nn.Module):
 
     def __init__(self):
         super().__init__()
+        self.loss = th.nn.BCEWithLogitsLoss(reduction='none')
 
     def forward(self, x, y):
-        x = x.reshape([-1])
-        y = y.reshape([-1])
 
         filt = th.abs(2 * y - 1)
-
-        neg_abs = - x.abs()
-        loss = filt * (x.clamp(min=0) - x * y + (1 + neg_abs.exp()).log())
+        loss = self.loss(x, y)
+        loss = filt * loss
         return loss.mean()
+
+
+class Kendall_Loss(th.nn.Module):
+
+    def __init__(self, eps=1e-08):
+        super().__init__()
+        self.act = th.nn.Tanh()
+        self.eps = eps
+
+    def forward(self, p, y):
+
+        y = 2 * y - 1
+        p = self.act(p)
+
+        c = 1 + y*p
+        c = c.clamp(self.eps)
+
+        scale = 1 / math.log(2)
+
+        loss = y*y - scale * th.log(c)
+        return loss.mean()
+
+
+def build_model_io(base_dir):
+
+    def identity(state, filename=""):
+        return state
+
+    if base_dir is None:
+        return identity, identity
+
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
+
+    def save(state, filename="checkpoint.pth.tar"):
+        path = os.path.join(base_dir, filename)
+        th.save(state, path)
+
+    def load_best(state, filename="checkpoint.pth.tar"):
+        path = os.path.join(base_dir, filename)
+        m = th.load(path)
+        if m['score'] > state['score']:
+            return m
+        else:
+            return state
+
+    return save, load_best
 
 
 def select_loss(loss_type):
@@ -53,11 +102,46 @@ def select_loss(loss_type):
     if loss_type == 'rank_bce':
         return Rank_BCE(), True
 
+    if loss_type == 'kendall':
+        return Kendall_Loss(), True
+
     raise ValueError("Unknown loss function %s." % loss_type)
 
 
+def rank_preprocessor(score):
+
+    def inner_score(pred, target, labels):
+        p = train_utils.get_ranking(pred, labels)
+        t = train_utils.get_ranking(target, labels)
+        return score(p, t)
+
+    return inner_score
+
+
+def element_preprocessor(score, pos):
+
+    def inner_score(pred, target, labels):
+        p = pred[pos]
+        t = target[pos]
+        return score(p, t)
+
+    return inner_score
+
+
 def select_score(type):
-    return rank_scores.select_score(type, {}, {})
+
+    if ':' in type:
+        t, p = type.split(':')
+
+        try:
+            score = element_scores.select_score(t)
+            pos = int(p)
+            return element_preprocessor(score, pos)
+        except ValueError:
+            pass
+
+    rank_score = rank_scores.select_score(type, {}, {})
+    return rank_preprocessor(rank_score)
 
 
 def score(scores, pred, target, classes=15):
@@ -65,12 +149,13 @@ def score(scores, pred, target, classes=15):
     avg_score = {k: [] for k in scores}
     score_func = {k: select_score(k) for k in scores}
     for i in range(pred.shape[0]):
-        p = train_utils.get_ranking(pred[i, :], labels)
-        t = train_utils.get_ranking(target[i, :], labels)
+        p = pred[i, :]
+        t = target[i, :]
         for k in scores:
-            avg_score[k].append(score_func[k](p, t))
+            avg_score[k].append(score_func[k](p, t, labels))
 
-    return {k: th.tensor(avg_score[k]) for k in scores}
+    R = {k: th.tensor(avg_score[k], dtype=th.float) for k in scores}
+    return R
 
 
 def tensor_len(classes):
@@ -78,7 +163,7 @@ def tensor_len(classes):
         n = classes
     else:
         n = len(classes)
-    return int(n * (n + 1) / 2)
+    return int(n * (n - 1) / 2)
 
 
 def setup_optimizer(config, model):
@@ -137,8 +222,7 @@ def validate_model(model, validate_loader, loss_func, device,
         if valid_scores:
             if logit:
                 out = th.sigmoid(out)
-            pred = th.round(out)
-            sc = score(valid_scores, pred, batch.y, classes=classes)
+            sc = score(valid_scores, out, batch.y, classes=classes)
             for k, a in sc.items():
                 val_scores[k].append(a)
 
@@ -153,12 +237,17 @@ def validate_model(model, validate_loader, loss_func, device,
 
 
 def train_model(config, model, train_loader, device, valid_loader=None,
-                validate_step=10, valid_scores=None):
+                validate_step=10, valid_score=None, cache_dir=None):
     model.train()
+
+    save_func, load_func = build_model_io(cache_dir)
 
     logger = TrainLogger()
     loss_func, logit = select_loss(config['loss'])
+    loss_func = loss_func.to(device)
     optimizer, sheduler = setup_optim_sheduler(config, model)
+
+    best_score = 0.0
 
     for ep in range(config['epoch']):
         logger.start_epoch(ep)
@@ -172,13 +261,20 @@ def train_model(config, model, train_loader, device, valid_loader=None,
             if valid_loader is not None and i % validate_step == 0:
                 valid_loss, scores =\
                         validate_model(model, valid_loader, loss_func, device,
-                                       valid_scores, logit,
+                                       [valid_score], logit,
                                        len(config['tools']))
+                score = scores[valid_score]
                 logger.iteration(i, train_loss, valid_loss, scores)
+
+                if score > best_score:
+                    save_func({'model': model, 'epoch': ep, 'score': score})
 
         logger.end_epoch(ep)
         if sheduler is not None:
             sheduler.step()
+
+    model = load_func({'model': model,
+                      'epoch': config['epoch'], 'score': 0.0})['model']
 
     return model, logit
 
@@ -195,8 +291,7 @@ def test_model(config, model, test_loader, device):
 
         if config['logit']:
             out = th.sigmoid(out)
-        pred = th.round(out)
-        sc = score(test_scores, pred, batch.y, classes=classes)
+        sc = score(test_scores, out, batch.y, classes=classes)
         for k, a in sc.items():
             test_scoring[k].append(a)
 
@@ -220,9 +315,18 @@ def test_model(config, model, test_loader, device):
 @task_definition()
 def execute_model(tools, config, dataset_path, env=None):
 
+    db = env.get_db()
+    models = db.torch_models
+
+    sparse = False
+    if 'sparse' in config:
+        sparse = config['sparse']
+    config['model']['sparse'] = sparse
+
     train_dataset = proto_data.BufferedDataset(
                         proto_data.GraphDataset(dataset_path, 'train',
-                                                shuffle=True))
+                                                shuffle=True,
+                                                sparse=sparse))
 
     validate_size = int(len(train_dataset) * config['training']['validate'])
     valid_dataset = train_dataset[:validate_size]
@@ -236,7 +340,7 @@ def execute_model(tools, config, dataset_path, env=None):
         'num_workers': 6
     }
 
-    model, out_channels = build_model_from_config(config)
+    model, out_channels = build_model_from_config(config['model'])
 
     final = th.nn.Linear(out_channels, tensor_len(tools))
     model = th.nn.Sequential(model, final)
@@ -249,10 +353,11 @@ def execute_model(tools, config, dataset_path, env=None):
     train_config['tools'] = tools
     # Train model
     model, logit = train_model(train_config, model, train_loader, device,
-                               valid_loader=val_loader, validate_step=100,
-                               valid_scores=config['testing']['scores'])
+                               valid_loader=val_loader, validate_step=1000,
+                               valid_score=train_config['validate_score'],
+                               cache_dir=env.get_cache_dir())
 
-    test_dataset = proto_data.GraphDataset(dataset_path, 'test')
+    test_dataset = proto_data.GraphDataset(dataset_path, 'test', sparse=sparse)
     test_config = config['testing']
     test_config['tools'] = tools
     test_config['logit'] = logit
@@ -262,6 +367,40 @@ def execute_model(tools, config, dataset_path, env=None):
                       device)
     for k, v in eval.items():
         print("Test %s: %f (std: %f)" % (k, v['mean'], v['std']))
+
+    base_path = env.get_cache_dir()
+    base_path = os.path.join(base_path, "model.th")
+    th.save(model.state_dict(), base_path)
+
+    model_key = config['model_key']
+    key = config['key']
+    dataset = config['dataset']['key']
+
+    fs = GridFS(db)
+    file = fs.new_file(model=model_key,
+                       dataset_key=dataset,
+                       experiment=key,
+                       app_type='torch_model',
+                       encoding="utf-8")
+
+    try:
+        with open(base_path, "rb") as i:
+            shutil.copyfileobj(i, file)
+    finally:
+        file.close()
+
+    insert = {
+        'experiment': key,
+        'model_key': model_key,
+        'dataset': config['dataset']['key'],
+        'competition': config['dataset']['competition'],
+        'category': config['dataset']['category'],
+        'model_ref': file._id
+    }
+
+    insert.update(eval)
+
+    models.insert_one(insert)
 
 
 def build_model(config):
@@ -273,13 +412,14 @@ def build_model(config):
         train, test, category=config['dataset']['category'],
         ast_bag=True
     )
-    del config['dataset']
     return execute_model(tools, config, dataset)
 
 
 if __name__ == '__main__':
     config = {
         'key': 'test_0',
+        'model_key': 'attention',
+        'sparse': False,
         'dataset': {
             'key': '2019_reachability_all_10000',
             'competition': '2019',
@@ -288,21 +428,27 @@ if __name__ == '__main__':
             'min_tool_coverage': 0.8
         },
         'training': {
-            'epoch': 100,
+            'epoch': 10,
             'batch': 32,
             'shuffle': True,
-            'loss': 'rank_bce',
+            'loss': 'kendall',
             'validate': 0.1,
+            'validate_score': 'spearmann',
             'optimizer': {
-                'type': 'adam', 'lr': 0.001, 'weight_decay': 0.00001
+                'type': 'adam', 'lr': 0.003, 'betas': [0.9, 0.98],
+                'eps': 1e-09
             },
             'scheduler': {
-                'step_size': 20,
+                'step_size': 10,
                 'gamma': 0.5
             }
         },
         'testing': {
-            'scores': ['spearmann']
+            'scores': ['spearmann', 'accuracy:0', 'accuracy:32', 'accuracy:15']
+        },
+        'model': {
+            'strategy': 'cat',
+            'embed': [148, 32]
         }
     }
     train_test = build_model(config)

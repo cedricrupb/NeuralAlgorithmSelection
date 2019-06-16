@@ -39,6 +39,23 @@ def get_item(obj, key):
     )
 
 
+def scatter_func_inner(iterable, n):
+
+    sc = [[] for _ in range(n)]
+
+    for i, value in enumerate(iterable):
+        sc[i % n].append(value)
+
+    return sc
+
+
+def scatter(iterable, n):
+    sym = __create_sym(
+        scatter_func_inner, [iterable, n], {}
+    )
+    return SymbolicForkElement(sym)
+
+
 class ForkResource(object):
 
     def __init__(self, obj, src=None):

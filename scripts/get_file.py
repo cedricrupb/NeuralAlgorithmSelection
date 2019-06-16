@@ -70,4 +70,4 @@ parser.add_argument("name")
 args = parser.parse_args()
 
 db = get_db()
-db.ast_bag.update_many({}, {"$set": {"competition": "2019"}})
+db.wl_features.update_many({}, {"$set": {"max_depth": 5}})

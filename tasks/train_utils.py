@@ -325,7 +325,7 @@ def compare_labels(label1, time1, label2, time2):
 def get_preferences(labels, tools):
 
     n = len(tools)
-    pref = np.zeros((int(n*(n+1)/2)))
+    pref = np.zeros((int(n*(n-1)/2)))
 
     for i, t1 in enumerate(tools):
         for j in range(i + 1, len(tools)):
