@@ -166,6 +166,8 @@ class SymbolicForkElement(Symbolic):
 class SymbolicMergeElement(Symbolic):
 
     def __init__(self, args, flatten=False):
+        if not isinstance(args, list):
+            args = [args]
         self.args_ = {
             '__merge__%i' % i: v for i, v in enumerate(args)
         }

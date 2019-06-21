@@ -21,3 +21,5 @@ Werkzeug==0.15.2
 pytest==4.5.0
 requests==2.22.0
 scikit-learn==0.21.2
+protobuf==3.7.1
+lmdb==0.95

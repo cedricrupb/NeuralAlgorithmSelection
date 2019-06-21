@@ -1,15 +1,13 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
 
-from tasks import train_utils
+from tasks.utils import train_utils
 
 import os
 from tqdm import tqdm
 from gridfs import GridFS
 import json
 import traceback
-import numpy as np
-import gzip
 from glob import glob
 
 import torch as th

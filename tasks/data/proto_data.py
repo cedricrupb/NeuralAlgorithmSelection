@@ -1,8 +1,8 @@
 import taskflow as tsk
 from taskflow import task_definition
 
-from tasks import graph_data_pb2 as gd
-from tasks import train_utils
+from tasks.data import graph_data_pb2 as gd
+from tasks.utils import train_utils
 
 import torch as th
 from torch.utils.data import Dataset
@@ -51,7 +51,12 @@ def create_data(data, category, preference):
 
     edges = svgraph.edges
 
+    n = len(data['nodes'])
+
     for u, v, e in data['edges']:
+        if u >= n or v >= n:
+            print("WARN: Edge is out of bounds (%d, %d) != %d" % (u, v, n))
+            continue
         edges.row.append(u)
         edges.column.append(v)
         edges.types.append(select_edge_type(e))

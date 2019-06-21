@@ -139,7 +139,10 @@ def execute_merge(kwargs, backend_setting):
     if backend_setting['flatten']:
         out = []
         for r in res:
-            out.extend(r)
+            try:
+                out.extend(r)
+            except TypeError:
+                out.append(r)
         res = out
     return res
 

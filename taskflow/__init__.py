@@ -54,6 +54,10 @@ def _expand_var(key, value):
             yield key, value
 
 
+# TODO Support nested symbolic function
+# Minimal example func(*args) and func(a, b, c), func([a, b, c])
+
+
 def task_definition(version="1.0", **def_args):
     class task_definition_inner(object):
 

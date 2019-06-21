@@ -1,7 +1,7 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
 
-from tasks import train_utils as tu
+from tasks.utils import train_utils as tu
 
 import os
 import numpy as np
@@ -87,6 +87,10 @@ def _localize_label(db, path, index, competition, tools, category=None):
     if os.path.isfile(path):
         with open(path, "r") as i:
             return json.load(i)
+
+    base = os.path.dirname(path)
+    if not os.path.isdir(base):
+        os.makedirs(base)
 
     index = {t: i for i, t in enumerate(index)}
 
@@ -268,7 +272,7 @@ def lr_train_test(key, tools, train_index, test_index, competition,
 
 if __name__ == '__main__':
     dataset_key = '2019_all_categories_all_10000'
-    lr_key = 'tmp_test_0'
+    lr_key = '2019_all_categories_all_10000'
     limit = 10000
     competition = "2019"
     category = None

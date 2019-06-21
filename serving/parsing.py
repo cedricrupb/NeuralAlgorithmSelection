@@ -1,10 +1,9 @@
-from tasks import dataset_tasks as dt
-from tasks import preparation as p
-from tasks import proto_data as ptd
+from tasks.data import dataset_tasks as dt
+from tasks.data import preparation as p
+from tasks.data import proto_data as ptd
 
 import os
 import time
-import json
 import torch as th
 from torch_geometric.data import Data
 
@@ -81,10 +80,11 @@ def _attr_repr(attrs):
     return row, col
 
 
-def create_data_bag(G, ast_index, category, pos={}):
+def create_data_bag(G, ast_index, category, pos={}, ast_graph=False):
 
     p.compress_graph(
-        G, ast_index, ast_index['count'], p._compress_node2
+        G, ast_index, ast_index['count'],
+        p._compress_node2 if ast_graph else p._compress_node
     )
 
     G, node_index = p.to_custom_dict(G, attr=pos, return_index=True)

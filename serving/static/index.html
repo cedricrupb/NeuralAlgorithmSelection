@@ -1,8 +1,8 @@
 <html>
   <head>
     <link rel="stylesheet" type="text/css" href="semantic/dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="css/main.css">
     <link rel="stylesheet" type="text/css" href="css/codemirror.css">
+    <link rel="stylesheet" type="text/css" href="css/index.css">
     <script
     src="https://code.jquery.com/jquery-3.1.1.min.js"
     integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
@@ -77,7 +77,15 @@ int fib(int i){
       <div id="select">
 
         <div id="recommend" class="ui segments">
-          <div id="graph_draw" class="ui segment"></div>
+          <div id="graph_draw" class="ui segment">
+            <div id="layer" class="ui diabled selection dropdown">
+              <i class="dropdown icon"></i>
+              <div class="default text">Select layer</div>
+              <div class="menu">
+              </div>
+            </div>
+            <div id="graph_container"></div>
+          </div>
           <div id="prediction" class="ui secondary segment">
             Prediction is not finished.
           </div>
@@ -95,7 +103,7 @@ int fib(int i){
           mode: "text/x-csrc",
           styleSelectedText: true
         });
-        editor.setSize("95%", "90%");
+        editor.setSize("100%", "90%");
         initSite();
     </script>
   </body>

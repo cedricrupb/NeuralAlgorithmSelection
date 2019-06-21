@@ -65,11 +65,11 @@ def get_config():
 
 
 db = get_db()
-graph = db.ast_graph
-cur = graph.find({})
+graph = db.kernels
+cur = graph.find({'kernel_id': {'$regex': '^(?!(norm.*))'}})
 
 fs = GridFS(db)
 
 for obj in tqdm(cur, total=cur.count()):
-    fs.delete(obj['graph_ref'])
+    fs.delete(obj['kernel_ref'])
     graph.delete_one({'_id': obj['_id']})

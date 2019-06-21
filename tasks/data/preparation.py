@@ -2,7 +2,7 @@ import taskflow as tsk
 from taskflow import task_definition
 from taskflow.distributed import openRemoteSession
 
-from tasks.dataset_tasks import load_graph
+from tasks.data.dataset_tasks import load_graph
 
 import numpy as np
 import json
@@ -575,12 +575,12 @@ def wl_features_bag(task_id, iteration, depth, env=None):
 
 
 if __name__ == '__main__':
-    ids = load_svcomp_ids("2018")
+    ids = load_svcomp_ids("2019")
     id_it = tsk.fork(ids)
     cgraph = ast_features_graph(id_it, 5000)
     cbag = ast_features_bag(id_it, 5000)
     wl = wl_features_bag(id_it, 5, 5)
-    m = tsk.merge([cbag])
+    m = tsk.merge([cgraph])
 
     with openRemoteSession(
         session_id="317e3bb0-caf4-4f57-9975-0e782371a866"

@@ -26,6 +26,7 @@ var cyto;
 var select_options;
 var markers = [];
 var attention_marker = [];
+var attention_buffer;
 
 
 function predict(){
@@ -134,8 +135,8 @@ function reset(){
 }
 
 function presentGraph(id, data){
-  container = $('#graph_draw');
-  container.parent().children(".dimmer").removeClass(
+  container = $('#graph_container');
+  container.parent().parent().children(".dimmer").removeClass(
     "active"
   );
   cyto.elements().remove();
@@ -196,7 +197,7 @@ function attachPostion(id, data){
 }
 
 function loadPosition(id){
-  container = $('#graph_draw');
+  container = $('#graph_container');
   if(container.attr('graph') != id)
     return;
 
@@ -218,7 +219,7 @@ function loadPosition(id){
 }
 
 function loadGraph(id){
-  container = $('#graph_draw');
+  container = $('#graph_container');
   if(container.attr('graph') == id)
     return;
 
@@ -284,23 +285,31 @@ function attentionToGraph(data){
 
   for(a in atts){
       attention = (atts[a] - min)/(max - min);
+      node = cyto.$id(a);
       if(attention >= 0.5){
-        node = cyto.$id(a);
         node.style('background-color', "rgb(0, 100, 0)");
         node.style('background-opacity', attention);
+      }else{
+        node.style('background-color', "#ccc");
+        node.style('background-opacity', 1.0);
       }
   }
 
 }
 
 
-function presentAttention(id, data){
+function presentAttention(pos){
+  data = attention_buffer[pos];
   lineAttention = {};
 
   for(m of attention_marker){
     m.clear();
   }
   attention_marker = [];
+  for(m of markers){
+    m.clear();
+  }
+  markers = [];
 
   attentionToGraph(data);
 
@@ -352,6 +361,42 @@ function presentAttention(id, data){
 
 }
 
+function bufferAttention(id, data){
+  layer_menu = $('#layer');
+  layer_menu.removeClass('disabled');
+  layer_menu.children('.menu').empty();
+
+  attention_buffer = data;
+
+  i = 0;
+  small = 100;
+  for(att of data){
+    if(att != undefined){
+      layer_menu.children('.menu').append(
+        "<div class=\"item\" data-value=\""+i+"\">Layer "+i+"</div>"
+      );
+      if(i < small){
+        small = i;
+      }
+    }
+    i++;
+  }
+
+  if(small < 100){
+    layer_menu.children('.text').removeClass('default');
+    layer_menu.children('.text').text('Layer '+small);
+    presentAttention(small);
+
+    layer_menu.dropdown({
+      'set selected': small,
+      onChange: function(value, text, $selectItem){
+        presentAttention(value);
+      }
+    });
+  }
+
+}
+
 function loadAttention(id){
   container = $('#prediction');
   if(container.attr('attention') == id)
@@ -361,7 +406,7 @@ function loadAttention(id){
   $.ajax({
     url:"/api/attention/"+id+"/",
     type: 'GET',
-    success: function(data){presentAttention(id, data);}
+    success: function(data){bufferAttention(id, data);}
   }).fail(
     function(){
       failMsg("Cannot load attention...");
@@ -454,7 +499,7 @@ function highlightPosition(id){
 
 
 function initSite(){
-  container = $('#graph_draw');
+  container = $('#graph_container');
   $('#fail .close').on('click', function(){
     $(this).closest('#fail')
            .transition('fade');

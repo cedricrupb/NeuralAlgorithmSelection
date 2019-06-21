@@ -6,6 +6,7 @@ from gridfs import GridFS
 from tqdm import tqdm
 from bson.objectid import ObjectId
 from tasks.torch_model import build_model_from_config
+from tasks.torch_execute import tensor_len, model_seq
 import torch as th
 import os
 
@@ -106,14 +107,18 @@ def load_model(id):
     state = th.load("tmp")
     os.remove("tmp")
 
-    model, out_channels = build_model_from_config({'sparse': False, 'embed': [148, 32]})
+    model, out_channels = build_model_from_config(f['model_def'])
 
-    final = th.nn.Linear(out_channels, 91)
-    final = th.nn.Sequential(model, final)
-    final.load_state_dict(state)
-    final.eval()
+    final = th.nn.Linear(out_channels, tensor_len(f['tools']))
+    try:
+        out = model_seq(f['model_def'], model, final)
+        out.load_state_dict(state)
+    except Exception:
+        out = th.nn.Sequential(model, th.nn.Dropout(0.1), final)
+        out.load_state_dict(state)
+    out.eval()
 
-    return final, model, f
+    return out, model, f
 
 
 def get_ast_index():

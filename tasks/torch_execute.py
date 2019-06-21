@@ -1,8 +1,8 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
 
-from tasks import train_utils, proto_data
-from tasks import rank_scores, element_scores
+from tasks.utils import train_utils, rank_scores, element_scores
+from tasks.data import proto_data
 from tasks.torch_model import build_model_from_config
 
 import torch as th
@@ -14,6 +14,7 @@ import time
 import os
 import math
 import shutil
+import random
 
 
 class TrainLogger:
@@ -306,69 +307,7 @@ def test_model(config, model, test_loader, device):
     return test_scoring
 
 
-# Configuration:
-#  {
-#   'training': {'epoch': 10, 'batch': 32, 'shuffle':True}
-#   }
-#
-#
-@task_definition()
-def execute_model(tools, config, dataset_path, env=None):
-
-    db = env.get_db()
-    models = db.torch_models
-
-    sparse = False
-    if 'sparse' in config:
-        sparse = config['sparse']
-    config['model']['sparse'] = sparse
-
-    train_dataset = proto_data.BufferedDataset(
-                        proto_data.GraphDataset(dataset_path, 'train',
-                                                shuffle=True,
-                                                sparse=sparse))
-
-    validate_size = int(len(train_dataset) * config['training']['validate'])
-    valid_dataset = train_dataset[:validate_size]
-    train_dataset = train_dataset[validate_size:]
-
-    train_config = config['training']
-
-    loader_config = {
-        'shuffle': train_config['shuffle'],
-        'batch_size': train_config['batch'],
-        'num_workers': 6
-    }
-
-    model, out_channels = build_model_from_config(config['model'])
-
-    final = th.nn.Linear(out_channels, tensor_len(tools))
-    model = th.nn.Sequential(model, final)
-
-    device = th.device('cuda' if th.cuda.is_available() else 'cpu')
-    model = model.to(device)
-    train_loader = DataLoader(train_dataset, **loader_config)
-    val_loader = DataLoader(valid_dataset, batch_size=32, num_workers=6)
-
-    train_config['tools'] = tools
-    # Train model
-    model, logit = train_model(train_config, model, train_loader, device,
-                               valid_loader=val_loader, validate_step=1000,
-                               valid_score=train_config['validate_score'],
-                               cache_dir=env.get_cache_dir())
-
-    test_dataset = proto_data.GraphDataset(dataset_path, 'test', sparse=sparse)
-    test_config = config['testing']
-    test_config['tools'] = tools
-    test_config['logit'] = logit
-    eval = test_model(test_config,
-                      model,
-                      DataLoader(test_dataset, **loader_config),
-                      device)
-    for k, v in eval.items():
-        print("Test %s: %f (std: %f)" % (k, v['mean'], v['std']))
-
-    base_path = env.get_cache_dir()
+def store_model(db, config, model, tools, base_path, eval):
     base_path = os.path.join(base_path, "model.th")
     th.save(model.state_dict(), base_path)
 
@@ -395,12 +334,153 @@ def execute_model(tools, config, dataset_path, env=None):
         'dataset': config['dataset']['key'],
         'competition': config['dataset']['competition'],
         'category': config['dataset']['category'],
-        'model_ref': file._id
+        'model_def': config['model'],
+        'model_ref': file._id,
+        'tools': tools
     }
 
     insert.update(eval)
 
+    models = db.torch_models
     models.insert_one(insert)
+
+
+def graph_augmention(options=[0, 1, 2, 5, 6]):
+
+    def select_filter(option):
+        select = {
+            1: [0],
+            2: [1, 2],
+            3: [0, 2],
+            4: [0, 1],
+            5: [2],
+            6: [1]
+        }
+        return select[option]
+
+    def augment(data):
+        option = random.choice(options)
+
+        if option == 0:
+            return data
+
+        filter = select_filter(option)
+        edge_attr = data.edge_attr.numpy()
+        edge_attr_t = edge_attr.transpose()
+        edge_index = data.edge_index.numpy()
+
+        pos = []
+        for f in filter:
+            pos.append(
+                np.where(edge_attr_t[f] == 1)[0]
+            )
+        pos = np.hstack(pos)
+        edge_attr = edge_attr[pos, :]
+        edge_index = edge_index[:, pos]
+        data.edge_index = th.tensor(edge_index)
+        data.edge_attr = th.tensor(edge_attr)
+        return data
+
+    return augment
+
+
+def dataset_transform(config):
+    config = config['model']
+
+    transform = None
+    if 'augment' in config:
+        aug = config['augment']
+        options = [0, 1, 2, 5, 6]
+        if isinstance(aug, list):
+            options = aug
+            aug = True
+        if aug:
+            transform = graph_augmention(options)
+
+    return transform
+
+
+def model_seq(config, base, final):
+    if 'dropout' in config:
+        return th.nn.Sequential(base,
+                                th.nn.Dropout(config['dropout']),
+                                final)
+    return th.nn.Sequential(base, final)
+
+# Configuration:
+#  {
+#   'training': {'epoch': 10, 'batch': 32, 'shuffle':True}
+#   }
+#
+#
+@task_definition()
+def execute_model(tools, config, dataset_path, env=None):
+
+    sparse = False
+    if 'sparse' in config:
+        sparse = config['sparse']
+    config['model']['sparse'] = sparse
+
+    train_dataset = proto_data.BufferedDataset(
+                        proto_data.GraphDataset(dataset_path, 'train',
+                                                shuffle=True,
+                                                sparse=sparse,
+                                                transform=dataset_transform(config)))
+
+    validate_size = int(len(train_dataset) * config['training']['validate'])
+    valid_dataset = train_dataset[:validate_size]
+    train_dataset = train_dataset[validate_size:]
+
+    train_config = config['training']
+
+    loader_config = {
+        'shuffle': train_config['shuffle'],
+        'batch_size': train_config['batch'],
+        'num_workers': 6
+    }
+
+    model, out_channels = build_model_from_config(config['model'])
+
+    final = th.nn.Linear(out_channels, tensor_len(tools))
+    model = model_seq(config['model'], model, final)
+    print(model)
+
+    device = th.device('cuda' if th.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    train_loader = DataLoader(train_dataset, **loader_config)
+    val_loader = DataLoader(valid_dataset, batch_size=32, num_workers=6)
+
+    train_config['tools'] = tools
+    # Train model
+    model, logit = train_model(train_config, model, train_loader, device,
+                               valid_loader=val_loader, validate_step=1000,
+                               valid_score=train_config['validate_score'],
+                               cache_dir=env.get_cache_dir())
+
+    test_dataset = proto_data.GraphDataset(dataset_path, 'test', sparse=sparse)
+    test_config = config['testing']
+    test_config['tools'] = tools
+    test_config['logit'] = logit
+    eval = test_model(test_config,
+                      model,
+                      DataLoader(test_dataset, **loader_config),
+                      device)
+    for k, v in eval.items():
+        print("Test %s: %f (std: %f)" % (k, v['mean'], v['std']))
+
+    if 'model_key' in config:
+        store_model(env.get_db(), config, model, tools,
+                    env.get_cache_dir(), eval)
+
+
+def is_bag(config):
+    config = config['model']
+
+    is_bag = True
+    if 'ast_type' in config:
+        is_bag = config['ast_type'] == 'bag'
+
+    return is_bag
 
 
 def build_model(config):
@@ -410,7 +490,7 @@ def build_model(config):
     dataset = proto_data.download_lmdb(
         tools, config['dataset']['competition'],
         train, test, category=config['dataset']['category'],
-        ast_bag=True
+        ast_bag=is_bag(config)
     )
     return execute_model(tools, config, dataset)
 
@@ -418,28 +498,28 @@ def build_model(config):
 if __name__ == '__main__':
     config = {
         'key': 'test_0',
-        'model_key': 'attention',
         'sparse': False,
+        'model_key': 'gin_bce_a1_na_global',
         'dataset': {
-            'key': '2019_reachability_all_10000',
+            'key': '2019_all_categories_all_10000',
             'competition': '2019',
             'category': 'reachability',
             'test_ratio': 0.2,
             'min_tool_coverage': 0.8
         },
         'training': {
-            'epoch': 10,
+            'epoch': 200,
             'batch': 32,
             'shuffle': True,
-            'loss': 'kendall',
+            'loss': 'rank_bce',
             'validate': 0.1,
             'validate_score': 'spearmann',
             'optimizer': {
-                'type': 'adam', 'lr': 0.003, 'betas': [0.9, 0.98],
+                'type': 'adam', 'lr': 0.01, 'betas': [0.9, 0.98],
                 'eps': 1e-09
             },
             'scheduler': {
-                'step_size': 10,
+                'step_size': 50,
                 'gamma': 0.5
             }
         },
@@ -447,8 +527,39 @@ if __name__ == '__main__':
             'scores': ['spearmann', 'accuracy:0', 'accuracy:32', 'accuracy:15']
         },
         'model': {
-            'strategy': 'cat',
-            'embed': [148, 32]
+            'ast_type': 'bag',
+            'dropout': 0.1,
+            'augment': False,
+            'node_input': 148,
+            'edge_input': 3,
+            'global_input': 4,
+            'layers': [
+                {
+                    'node_conv': {
+                        'type': 'embedding',
+                        'node_dim': 32
+                    },
+                    'readout': {
+                        'type': 'cga'
+                    }
+                },
+                {
+                    'node_conv': {
+                        'type': 'gin',
+                        'node_dim': 32,
+                        'build': {
+                            'hidden': 32,
+                            'dropout': 0.1
+                        }
+                    },
+                    'readout': {
+                        'type': 'cga'
+                    }
+                }
+            ],
+            'global_output': {
+                'type': 'concatinate'
+            }
         }
     }
     train_test = build_model(config)

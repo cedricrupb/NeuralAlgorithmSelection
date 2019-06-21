@@ -8,8 +8,8 @@ import traceback
 import threading
 import json
 
-from tasks import dataset_tasks as dt
-from tasks import train_utils as tu
+from tasks.data import dataset_tasks as dt
+from tasks.utils import train_utils as tu
 import torch as th
 from torch_geometric.data import Batch
 
@@ -26,6 +26,8 @@ def transform_c(id, model_id, category, base_path, file_path):
 
     model, base, info = db_utils.load_model(model_id)
 
+    ast_graph = info['model_key'].endswith('_graph')
+
     graph_path = os.path.join(base_path, "graph.json")
     try:
         graph_path, pos_path, _ = p.parse_c_code(file_path, graph_path)
@@ -35,11 +37,12 @@ def transform_c(id, model_id, category, base_path, file_path):
             pos = json.load(i)
         G = dt.parse_dfs_nx_alt(D)
         data, index = p.create_data_bag(G, db_utils.get_ast_index(),
-                                        category, pos=pos)
+                                        category, pos=pos,
+                                        ast_graph=ast_graph)
         data = Batch.from_data_list([data])
         pred = th.sigmoid(model(data))
 
-        tools = db_utils.get_tools(info['dataset'])
+        tools = info['tools']
         ranking = tu.get_ranking(pred[0], tools)
 
         with open(os.path.join(base_path, "prediction.json"), "w") as o:
@@ -51,11 +54,17 @@ def transform_c(id, model_id, category, base_path, file_path):
 
         index = {v: k for k, v in index.items()}
 
-        for i in range(att.shape[0]):
-            attention.append(
-                [pos[0, i].item(), pos[1, i].item(), att[i].item(),
-                 index[i]]
-            )
+        for a in att:
+            if a is None:
+                attention.append(None)
+                continue
+            o = []
+            for i in range(a.shape[0]):
+                o.append(
+                    [pos[0, i].item(), pos[1, i].item(), a[i].item(),
+                     index[i]]
+                )
+            attention.append(o)
 
         with open(os.path.join(base_path, "attention.json"), "w") as o:
             json.dump(attention, o)
