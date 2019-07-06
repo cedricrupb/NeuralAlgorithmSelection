@@ -7,6 +7,7 @@ from tasks.torch_model import build_model_from_config
 
 import torch as th
 from torch_geometric.data import DataLoader
+from torch.nn import functional as F
 from gridfs import GridFS
 
 import numpy as np
@@ -63,6 +64,22 @@ class Kendall_Loss(th.nn.Module):
         y = 2 * y - 1
         p = self.act(p)
 
+        loss = -y * p
+        return loss.mean()
+
+
+class Relational_Log_Loss(th.nn.Module):
+
+    def __init__(self, eps=1e-08):
+        super().__init__()
+        self.act = th.nn.Tanh()
+        self.eps = eps
+
+    def forward(self, p, y):
+
+        y = 2 * y - 1
+        p = self.act(p)
+
         c = 1 + y*p
         c = c.clamp(self.eps)
 
@@ -70,6 +87,46 @@ class Kendall_Loss(th.nn.Module):
 
         loss = y*y - scale * th.log(c)
         return loss.mean()
+
+
+def reduce(L, reduction):
+
+    if reduction == 'mean':
+        return L.mean()
+    if reduction == 'sum':
+        return L.sum()
+    return L
+
+
+class MaskedLoss(th.nn.Module):
+
+    def __init__(self, loss, reduction='mean'):
+        super().__init__()
+        self.loss = loss
+        self.reduction = reduction
+
+    def forward(self, p, y):
+
+        _y = 2*y - 1
+        _y = _y * _y
+
+        L = _y * self.loss(p, y)
+
+        return reduce(L, self.reduction)
+
+
+class HingeLoss(th.nn.Module):
+
+    def __init__(self, margin=1.0, reduction='mean'):
+        super().__init__()
+        self.reduction = reduction
+        self.margin = margin
+
+    def forward(self, p, y):
+
+        y = 2*y - 1
+        L = F.relu(self.margin - y * p)
+        return reduce(L, self.reduction)
 
 
 def build_model_io(base_dir):
@@ -105,6 +162,12 @@ def select_loss(loss_type):
 
     if loss_type == 'kendall':
         return Kendall_Loss(), True
+
+    if loss_type == 'relational':
+        return Relational_Log_Loss(), True
+
+    if loss_type == 'hinge':
+        return MaskedLoss(HingeLoss(reduction=None)), True
 
     raise ValueError("Unknown loss function %s." % loss_type)
 
@@ -407,6 +470,7 @@ def model_seq(config, base, final):
                                 final)
     return th.nn.Sequential(base, final)
 
+
 # Configuration:
 #  {
 #   'training': {'epoch': 10, 'batch': 32, 'shuffle':True}
@@ -499,7 +563,7 @@ if __name__ == '__main__':
     config = {
         'key': 'test_0',
         'sparse': False,
-        'model_key': 'gin_bce_a1_na_global',
+        'model_key': 'edge_gin_a1_hinge',
         'dataset': {
             'key': '2019_all_categories_all_10000',
             'competition': '2019',
@@ -511,7 +575,7 @@ if __name__ == '__main__':
             'epoch': 200,
             'batch': 32,
             'shuffle': True,
-            'loss': 'rank_bce',
+            'loss': 'hinge',
             'validate': 0.1,
             'validate_score': 'spearmann',
             'optimizer': {
@@ -545,11 +609,14 @@ if __name__ == '__main__':
                 },
                 {
                     'node_conv': {
-                        'type': 'gin',
+                        'type': 'edge_gin',
                         'node_dim': 32,
+                        'edge_dim': 3,
                         'build': {
-                            'hidden': 32,
-                            'dropout': 0.1
+                            'gin': {
+                                'hidden': 32,
+                                'dropout': 0.1
+                            }
                         }
                     },
                     'readout': {

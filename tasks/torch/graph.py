@@ -85,11 +85,8 @@ class GraphModule(th.nn.Module):
     def __init__(self, modules, funcs, sequence):
         super().__init__()
 
-        for k, m in modules.items():
-            self.add_module(k, m)
-
-        self._modules = modules
-        self._modules.update(funcs)
+        self.activation = th.nn.ModuleDict(modules)
+        self.funcs = funcs
         self._sequence = sequence
 
     def _execute(self, action, kwargs):
@@ -106,7 +103,10 @@ class GraphModule(th.nn.Module):
         if action == 'output':
             return kwargs['input']
 
-        module = self._modules[action]
+        if action in self.funcs:
+            return self.funcs[action](**kwargs)
+
+        module = self.activation[action]
         return module(**kwargs)
 
     def forward(self, input):
@@ -276,10 +276,12 @@ class ComputationGraph:
         sink = self._graph.nodes[sink_id]['module']
 
         if src_out not in src.get_outputs():
-            raise ValueError("source [%s] has not output of id %s" % (src_id, src_out))
+            p = ', '.join(src.get_outputs())
+            raise ValueError("source [%s] has not output of id \"%s\" [Options: %s]" % (src_id, src_out, p))
 
         if sink_in not in sink.get_inputs():
-            raise ValueError("sink [%s] has not input of id %s" % (sink_id, sink_in))
+            p = ', '.join(sink.get_inputs())
+            raise ValueError("sink [%s] has not input of id \"%s\" [Options: %s]" % (sink_id, sink_in, p))
 
         self._graph.add_edge(src_id, sink_id, key=src_out, to=sink_in)
 
@@ -299,7 +301,15 @@ class ComputationGraph:
 
         seq = execution_sequence(self._graph)
 
-        return GraphModule(modules, funcs, seq)
+        module_seq = []
+
+        for _, act, _ in seq:
+            if act in modules:
+                module_seq.append(
+                    [act, modules[act]]
+                )
+
+        return GraphModule(module_seq, funcs, seq)
 
     def __getstate__(self):
         out = {}
@@ -370,7 +380,6 @@ def build_graph(config):
 if __name__ == '__main__':
     config = {
         'input': 32,
-        'gay': True,
         'modules': {
             'm0': {'type': 'torch::Linear', 'dim': 32},
             'm1': 'torch::ReLU',
@@ -390,14 +399,16 @@ if __name__ == '__main__':
         'global_input': 4,
         'modules': {
             'm0': {'type': 'tasks::Embedding', 'node_dim': 1},
-            'm1': 'tasks::cga'
+            'm1': 'tasks::cga',
+            'm2': {'type': 'torch::Linear', 'out_channels': 91, 'bias': False}
         },
         'bind': [
             ['source', 'x', 'x', 'm0'],
             ['m0', 'forward', 'x', 'm1'],
             ['source', 'category', 'condition', 'm1'],
             ['source', 'batch', 'batch', 'm1'],
-            ['m1', 'forward', 'input', 'sink']
+            ['m1', 'forward', 'input', 'm2'],
+            ['m2', 'forward', 'input', 'sink']
         ]
     })
 

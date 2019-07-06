@@ -137,7 +137,8 @@ def covered_tools(key, competition, coverage, min_coverage=0.8, env=None):
 
 
 @task_definition()
-def filter_by_stat(competition, conditions, lesser=True, env=None):
+def filter_by_stat(competition, conditions, lesser=True, duplicate=True,
+                   env=None):
     if env is None:
         raise ValueError("train_test_split needs an execution context")
 
@@ -150,6 +151,9 @@ def filter_by_stat(competition, conditions, lesser=True, env=None):
     }
     for key, cond in conditions.items():
         search[key] = {op: cond}
+
+    if not duplicate:
+        search['duplicate'] = {'$exists': 0}
 
     return [o['name'] for o in stat.find(search, ['name'])]
 

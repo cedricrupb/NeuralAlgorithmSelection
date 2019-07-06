@@ -3,15 +3,20 @@ from taskflow import task_definition, backend
 from taskflow.distributed import openRemoteSession
 from tasks.baseline import logistic_regression as loader
 
+from tasks.utils import train_utils as tu
+
 import os
 from gridfs import GridFS
 from bson.objectid import ObjectId
+from pymongo import UpdateOne
+from tqdm import tqdm
 import json
 import numpy as np
 from scipy.sparse import coo_matrix
 from tqdm import trange
 from time import time
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
 
 
@@ -614,8 +619,83 @@ def present_kernel(id, env=None):
     return K
 
 
-def load_kernel_sliced(db, kernel_id, train_index, test_index):
-    info, K = load_kernel(db, kernel_id)
+def load_kernel_str(db, _id):
+    kernel = db.kernels
+
+    id_search = isinstance(_id, ObjectId)
+
+    f = kernel.find_one({'_id': _id} if id_search else {'kernel_id': _id})
+    if f is None:
+        raise ValueError("Unknown id %s." % (str(_id)))
+
+    fs = GridFS(db)
+    obj_id = f['kernel_ref']
+
+    K = fs.get(obj_id).read().decode('utf-8')
+
+    return f, K
+
+
+def get_names(db, ids):
+
+    pos = {k: i for i, k in enumerate(ids) if isinstance(k, ObjectId)}
+
+    lookup = db['fs.files']
+
+    cur = lookup.find({'app_type': 'code_graph'}, ['_id', 'name'])
+
+    for obj in tqdm(cur, total=cur.count()):
+        if obj['_id'] in pos:
+            ids[pos[obj['_id']]] = obj['name']
+    return ids
+
+
+def load_kernel_cached(db, kernel_id, path):
+
+    path = os.path.join(path, kernel_id)
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    info_p = os.path.join(path, 'info.json')
+    kernel_p = os.path.join(path, 'kernel.json')
+
+    if not os.path.exists(kernel_p):
+        info, kernel = load_kernel_str(db, kernel_id)
+
+        del info['_id']
+        del info['kernel_ref']
+
+        get_names(db, info['row_ids'])
+        get_names(db, info['col_ids'])
+        with open(info_p, 'w') as o:
+            json.dump(info, o)
+
+        with open(kernel_p, 'w') as o:
+            o.write(kernel)
+        kernel = json.loads(kernel)
+
+    else:
+
+        with open(info_p, "r") as o:
+            info = json.load(o)
+
+        with open(kernel_p, "r") as o:
+            kernel = json.load(o)
+
+    transpose = info['transpose']
+    kernel = np.array(
+        kernel
+    )
+
+    if transpose:
+        kernel = kernel.transpose()
+
+    return info, kernel
+
+
+def load_kernel_sliced(db, kernel_id, train_index, test_index, cache):
+    info, K = load_kernel_cached(db, kernel_id, cache)
     idx = {k: i for i, k in enumerate(info['row_ids'])}
     trix = {k: idx[k] for k in train_index}
     teix = {k: idx[k] for k in test_index}
@@ -626,23 +706,29 @@ def load_kernel_sliced(db, kernel_id, train_index, test_index):
     return trix, K[tr_slice, :][:, tr_slice], teix, K[te_slice, :][:, tr_slice]
 
 
-def get_names(db, competition, ids):
-    wl = db['fs.files']
+def train_svm(kernel, label, C=[0.01]):
 
-    idx = {k: i for i, k in enumerate(ids)}
-    names = [None]*len(ids)
-    wls = wl.find({'competition': competition}, ['_id', 'name'])
+    clf = SVC(kernel="precomputed", probability=True)
 
-    for wl in wls:
-        if wl['_id'] in idx:
-            names[idx[wl['_id']]] = wl['name']
+    D = {'C': C}
+    gclf = GridSearchCV(clf, D, cv=10, scoring='f1', n_jobs=-1, refit=False)
 
-    return names
+    gclf.fit(kernel, label)
+
+    param = gclf.best_params_
+
+    param['kernel'] = 'precomputed'
+    param['probability'] = True
+
+    clf = SVC(**param)
+    clf.fit(kernel, label)
+
+    return clf
 
 
 @task_definition()
 def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
-                   category=None, env=None):
+                   category=None, C=None, env=None):
     if env is None:
         raise ValueError("train_test_split needs an execution context")
 
@@ -656,12 +742,12 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
 
     print("Localize train data")
     train_index, train_kernel, test_index, test_kernel = load_kernel_sliced(
-        db, kernel_id, train_index, test_index
+        db, kernel_id, train_index, test_index, env.get_cache_dir()
     )
 
     train_labels = loader._localize_label(
         db, os.path.join(env.get_cache_dir(), key, "train", 'label.json'),
-        get_names(db, competition, train_index.keys()),
+        get_names(db, train_index.keys()),
         competition, tools, category
     )
     train_labels = loader.expand_and_label(train_labels)
@@ -669,7 +755,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
     print("Localize test data")
     test_labels = loader._localize_label(
         db, os.path.join(env.get_cache_dir(), key, "test", 'label.json'),
-        get_names(db, competition, test_index.keys()),
+        get_names(db, test_index.keys()),
         competition, tools,
         category
     )
@@ -679,10 +765,10 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
     pred = []
     quality = []
 
+    if C is None:
+        C = [0.01]
+
     for t_index, t_labels in train_labels:
-        clf = SVC(
-            kernel='precomputed', probability=True
-        )
         print("Train clf %i" % (len(pred) + 1))
         te_index, te_labels = test_bin_labels[len(pred)]
 
@@ -691,7 +777,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
             v = 0 if u[0] == 0.0 else 1
             p = np.array([v]*te_index.shape[0])
         else:
-            clf.fit(train_kernel[t_index, :][:, t_index], t_labels)
+            clf = train_svm(train_kernel[t_index, :][:, t_index], t_labels, C)
             print("Finished training")
             test = test_kernel[te_index, :][:, t_index]
             p = clf.predict_proba(test)[:, 1]
@@ -714,7 +800,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
         'key': key,
         'competition': competition,
         'category': category,
-        'type': 'logistic_regression',
+        'type': 'kernel_svm',
         'train_size': len(train_index),
         'test_size': pred.shape[0],
         'binary_accuracies': quality,
@@ -726,11 +812,68 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
     return mean_score, std_score
 
 
-if __name__ == '__main__':
-    ids = load_wl_ids('2018')
-    kernel = sv_sum_kernels('2018', 5, 5, ids)
+@task_definition()
+def annotate_duplicates(kernel_id, competition, env=None):
 
-    with openRemoteSession(
-        session_id="317e3bb0-caf4-4f57-9975-0e782371a866"
-    ) as sess:
-        sess.run(kernel)
+    db = env.get_db()
+    stat = db.graph_statistics
+    info, K = load_kernel_cached(db, kernel_id,
+                                 env.get_cache_dir())
+
+    row, col = np.where(K >= 0.9999999)
+
+    updates = []
+
+    for i in trange(row.shape[0]):
+        pos = row[i]
+        cpos = col[i]
+        if pos != cpos:
+            id = info['row_ids'][pos]
+            dup = info['col_ids'][cpos]
+            updates.append(
+                UpdateOne({'name': id, 'competition': competition},
+                          {'$set': {'duplicate': dup}})
+            )
+    stat.bulk_write(updates)
+
+
+@task_definition()
+def percent_duplicate(competition, env=None):
+    stat = env.get_db().graph_statistics
+
+    cur1 = stat.find({'competition': competition})
+    cur2 = stat.find({'competition': competition, 'duplicate': {'$exists': 1}, 'name': {'$regex': '^(?!.*eca-rers2012).*$'}})
+
+    print("Duplicate: %f" % (cur2.count()/cur1.count()))
+
+
+if __name__ == '__main__':
+    dataset_key = '2019_categories_all_10000'
+    lr_key = 'kernel_2019_1_cv2'
+    limit = 10000
+    competition = "2019"
+    category = None
+
+    condition = {}
+    for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
+        condition[key] = limit
+
+    filter = tu.filter_by_stat(competition, condition)
+    split = tu.train_test(dataset_key, competition, category=category,
+                          test_ratio=0.2, filter=filter)
+    cov = tu.tool_coverage(
+            competition, filter=split[0], category=category
+    )
+    tools = tu.covered_tools(
+        dataset_key, competition, cov, min_coverage=0.8
+    )
+
+    train_index, test_index = split[0], split[1]
+
+    lr = svm_train_test(
+        lr_key, tools, 'norm_2019_1', train_index, test_index,
+        competition, category, C=[0.001, 0.01, 0.1, 1.0, 100, 1000]
+    )
+
+    with backend.openLocalSession(auto_join=True) as sess:
+        sess.run(lr)

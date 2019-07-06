@@ -55,9 +55,9 @@ class EdgeAttention(th.nn.Module):
         x = x.unsqueeze(-1) if x.dim() == 1 else x
 
         x_row, x_col = x.index_select(0, row), x.index_select(0, col)
-        out = th.cat([x_row, x_col, edge_attr], dim=1)
-        out = self.nn(x)
-        out = scatter_('add', x, row, dim_size=x.size(0))
+        out = th.cat([x_row, x_col, edge_attr.float()], dim=1)
+        out = self.nn(out)
+        out = scatter_('add', out, row, dim_size=x.size(0))
 
         return out
 
@@ -120,3 +120,59 @@ class GINMLP(th.nn.Module):
 
     def forward(self, x):
         return self.sequence(x)
+
+
+def prepare_gin(nn_cfg, in_channel, out_channel):
+
+    hidden = []
+    if 'hidden' in nn_cfg:
+        hid = nn_cfg['hidden']
+        if not isinstance(hid, list):
+            hid = [hid]
+        hidden = hid
+
+    dropout = [0.1]*len(hidden)
+    if 'dropout' in nn_cfg:
+        dr = nn_cfg['dropout']
+        if not isinstance(dr, list):
+            dr = [dr]*len(hidden)
+        if len(dr) != len(hidden):
+            raise ValueError("Dropout has to match hidden layers.\
+                              Got %i but expected %i" % (len(dr), len(hidden)))
+        dropout = dr
+
+    norm = [False]*len(hidden)
+    if 'norm' in nn_cfg:
+        n = nn_cfg['norm']
+        if not isinstance(n, list):
+            n = [n]*len(hidden)
+        if len(n) != len(hidden):
+            raise ValueError("Norm has to match hidden layers.\
+                              Got %i but expected %i" % (len(n), len(hidden)))
+        norm = n
+
+    cfg = {
+        'in_channel': in_channel,
+        'hidden': hidden,
+        'out_channel': out_channel,
+        'dropout': dropout,
+        'batch_norm': norm
+    }
+    return cfg
+
+
+class CEdgeGIN(EdgeGIN):
+
+    def __init__(self, in_channels, out_channels, edge_channels,
+                 gin_nn, edge_nn={}):
+
+        gin = prepare_gin(
+            gin_nn, in_channels, out_channels
+        )
+        gin = GINMLP(**gin)
+
+        edge = prepare_gin(
+            edge_nn, 2*in_channels+edge_channels, in_channels
+        )
+        edge = GINMLP(**edge)
+        super().__init__(gin, edge)

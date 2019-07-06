@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from tasks.rank_scores import spearmann_score
+from tasks.utils.rank_scores import spearmann_score
 
 
 def _map_to_vec(D, index):

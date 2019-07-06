@@ -1,8 +1,0 @@
-main::a1[i]	0
-main::i	4
-main::a2	0
-main::x	4
-main::__retval__	7
-__VERIFIER_assert::cond	0
-main::a1	0
-main::a	4

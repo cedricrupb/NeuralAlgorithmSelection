@@ -49,9 +49,11 @@ class AliasManager:
 
 
 alias = AliasManager([['x', 'input'],
-                     ['out_features', 'node_dim', 'dim', 'out_channels'],
+                     ['out_features', 'node_dim', 'dim', 'out_channels',
+                      'out_channel'],
                      ['global_inp', 'condition'],
-                     ['global_channels', 'cond_channels']])
+                     ['global_channels', 'cond_channels'],
+                     ['in_features', 'in_channel', 'in_channels']])
 
 
 def warn_unused(name, config, options):
@@ -122,7 +124,9 @@ class ModuleDescription:
 
         for k, optional in options.items():
             if k in config:
-                kwargs[k] = config[k]
+                val = config[k]
+                if val is not None or not optional:
+                    kwargs[k] = val
             else:
                 if not optional:
                     raise ValueError("Module %s require module option \"%s\"."
@@ -201,12 +205,10 @@ class TorchHandler(ModuleHandler):
         self._base_config = config
         self._module = ModuleDescription(module)
         self._config = {k: None
-                        for k, v in self._module.get_config_options().items()
-                        if not v}
+                        for k in self._module.get_config_options().keys()}
         self._output_size = bind_out(config, self._config)
         bind_general(config, self._config,
                      self._module.get_config_options().keys())
-
         input_ = self._module.get_input_options()
         method = alias.get_alias('forward', of=input_.keys())
         self._method = next(iter(method))
@@ -249,8 +251,7 @@ class SimpleGraphHandler(ModuleHandler):
         super().__init__(name, config)
         self._module = ModuleDescription(module)
         self._config = {k: None
-                        for k, v in self._module.get_config_options().items()
-                        if not v}
+                        for k in self._module.get_config_options().keys()}
         self._output_size = bind_out(config, self._config, 'out_channels')
         bind_general(config, self._config,
                      self._module.get_config_options().keys())
@@ -335,8 +336,7 @@ class GraphHandler(ModuleHandler):
         super().__init__(name, config)
         self._module = ModuleDescription(module)
         self._config = {k: None
-                        for k, v in self._module.get_config_options().items()
-                        if not v}
+                        for k in self._module.get_config_options().keys()}
         self._output_size = bind_out(config, self._config)
         bind_general(config, self._config,
                      self._module.get_config_options().keys())

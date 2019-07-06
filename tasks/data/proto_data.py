@@ -77,8 +77,9 @@ def download_lmdb(tools, competition, train, test, category=None,
     cat_name = category
     if cat_name is None:
         cat_name = 'all'
+    ast = 'bag' if ast_bag else 'graph'
     out = os.path.join(env.get_cache_dir(),
-                       '%s_%s' % (competition, cat_name))
+                       '%s_%s_%s' % (competition, cat_name, ast))
 
     if os.path.exists(os.path.join(out, 'data.mdb')):
         return out

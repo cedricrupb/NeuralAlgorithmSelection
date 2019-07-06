@@ -344,7 +344,7 @@ class GINBuilder(LayerBuilder):
 
     def build_mlp(self, config, in_channel, out_channel):
         if 'hidden' not in config:
-            return th.nn.Linear(in_channel, out_channel)
+            return config, th.nn.Linear(in_channel, out_channel)
 
         config = copy.deepcopy(config)
 
@@ -421,9 +421,9 @@ class EdgeAttention(th.nn.Module):
         x = x.unsqueeze(-1) if x.dim() == 1 else x
 
         x_row, x_col = x.index_select(0, row), x.index_select(0, col)
-        out = th.cat([x_row, x_col, edge_attr], dim=1)
-        out = self.nn(x)
-        out = scatter_('add', x, row, dim_size=x.size(0))
+        out = th.cat([x_row, x_col, edge_attr.float()], dim=1)
+        out = self.nn(out)
+        out = scatter_('add', out, row, dim_size=x.size(0))
 
         return out
 
@@ -454,7 +454,7 @@ class EdgeGINLayer(GraphModule):
         self._bind = {k: k for k in ['x', 'edge_index', 'edge_attr']}
 
     def forward_bind(self, x, edge_index, edge_attr):
-        return self.edge_gin(x, edge_index, edge_attr)
+        return self.conv(x, edge_index, edge_attr)
 
 
 class EdgeGINBuilder(GINBuilder):
@@ -482,7 +482,7 @@ class EdgeGINBuilder(GINBuilder):
         )
 
         edge_config, edge_mlp = self.build_mlp(
-            gin_config, edge_in, self.in_channels
+            edge_config, edge_in, self.in_channels
         )
 
         config['gin_nn'] = gin_mlp
