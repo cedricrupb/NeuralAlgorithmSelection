@@ -54,6 +54,20 @@ def store_list(db, L):
     return "list_"+id
 
 
+def store_dict(db, D):
+    ref_list = {k: store(db, v) for k, v in D.items()}
+    id = str(uuid.uuid4())
+
+    db.datastructures.insert_one(
+        {
+            '_id': id,
+            'type': 'dict',
+            'content': ref_list
+        }
+    )
+    return 'dict_'+id
+
+
 def store(db, obj):
 
     if obj is None:
@@ -77,7 +91,10 @@ def store(db, obj):
     if isinstance(obj, float):
         return "f\'%f\'" % obj
 
-    if isinstance(obj, list):
+    if isinstance(obj, dict):
+        return store_dict(db, obj)
+
+    if isinstance(obj, list) or isinstance(obj, tuple):
         return store_list(db, obj)
 
     return _json_to_gridfs(db, obj)
@@ -104,6 +121,17 @@ def _rebuild_list(db, ref, partial):
     return [load(db, r, partial) for r in L['content']]
 
 
+def _rebuild_dict(db, ref, partial):
+
+    L = db.datastructures.find_one({'_id': ref})
+    if L is None:
+        raise ValueError("%s does not exist." % ref)
+    if L['type'] != 'dict':
+        raise ValueError("%s is not a list." % ref)
+
+    return {r: load(db, v, partial) for r, v in L['content'].items()}
+
+
 def load(db, obj_ref, partial=False):
 
     if isinstance(obj_ref, ObjectId):
@@ -118,6 +146,10 @@ def load(db, obj_ref, partial=False):
     if obj_ref.startswith("list_"):
         obj_ref = obj_ref[5:]
         return _rebuild_list(db, obj_ref, partial)
+
+    if obj_ref.startswith("dict_"):
+        obj_ref = obj_ref[5:]
+        return _rebuild_dict(db, obj_ref, partial)
 
     if partial:
         return Reference(db, obj_ref)

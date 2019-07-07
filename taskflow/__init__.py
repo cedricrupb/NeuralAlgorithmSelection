@@ -30,6 +30,10 @@ def optional(func):
     return sym.optional(func)
 
 
+def scatter(iterable, buckets):
+    return sym.scatter(iterable, buckets)
+
+
 def _expand_var(key, value):
     if isinstance(value, sym.Symbolic):
         yield key, value
@@ -48,6 +52,10 @@ def _expand_var(key, value):
                 yield key+"::list_%i" % i, v
         except (AttributeError, TypeError):
             yield key, value
+
+
+# TODO Support nested symbolic function
+# Minimal example func(*args) and func(a, b, c), func([a, b, c])
 
 
 def task_definition(version="1.0", **def_args):

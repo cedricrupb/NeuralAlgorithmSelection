@@ -70,4 +70,4 @@ parser.add_argument("name")
 args = parser.parse_args()
 
 db = get_db()
-db['fs.files'].update_many({"app_type": {"$exists": 0}}, {"$set": {"app_type": "code_graph", "competition": "2019"}})
+db.wl_features.update_many({}, {"$set": {"max_depth": 5}})

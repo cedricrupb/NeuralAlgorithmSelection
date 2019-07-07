@@ -251,11 +251,12 @@ def _execute_node(seq_graph, id, binding):
 
         func_node = seq_graph.graph['functions'][func_id]
 
-        if func_id.startswith('fork_'):
-            func_seq.append(('__fork__', {}, bind_id, {}))
-        elif func_id.startswith('merge_'):
-            func_seq.append(('__merge__', {}, bind_id,
-                            {'flatten': func_node['flatten']}))
+        if 'function' not in func_node:
+            if func_id.startswith('fork_'):
+                func_seq.append(('__fork__', {}, bind_id, {}))
+            elif func_id.startswith('merge_'):
+                func_seq.append(('__merge__', {}, bind_id,
+                                {'flatten': func_node['flatten']}))
         else:
             func_seq.append((
                 func_node['function'], func_node['env'],
@@ -265,15 +266,19 @@ def _execute_node(seq_graph, id, binding):
     return _handle_func_seq(func_seq, binding)
 
 
-def _execute_graph(seq_graph):
+def _execute_graph(seq_graph, debug=False):
 
     queue = [0]
 
     bindings = {0: {}}
+    execs = set([])
 
     while len(queue) > 0:
         id = queue.pop()
         bind = bindings[id]
+
+        if id in execs:
+            continue
 
         apply = True
 
@@ -290,7 +295,11 @@ def _execute_graph(seq_graph):
         if not apply:
             continue
 
+        if debug:
+            print("Run node %s." % id)
+
         result = _execute_node(seq_graph, id, bind)['__out__']
+        execs.add(id)
 
         for _, v, dest in seq_graph.out_edges(id, data='dest'):
             if v not in bindings:
@@ -311,9 +320,10 @@ def _execute_graph(seq_graph):
 
 class LocalBackend:
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self._sessions = {}
         self._session_result = {}
+        self._debug = debug
 
     def init(self, session_id):
         self._sessions[session_id] = None
@@ -333,7 +343,7 @@ class LocalBackend:
 
             if session_id not in self._session_result:
                 self._session_result[session_id] = _execute_graph(
-                    self._sessions[session_id]
+                    self._sessions[session_id], self._debug
                 )
 
             return True
@@ -407,7 +417,7 @@ class SessionInstance(object):
 
     def run(self, symbolic):
 
-        if not isinstance(symbolic, list):
+        if not isinstance(symbolic, list) and not isinstance(symbolic, tuple):
             symbolic = [symbolic]
 
         graph = self._build_graph(symbolic)
@@ -453,5 +463,8 @@ class SessionResult:
         return "SessionResult( id = %s )" % self._session_id
 
 
-def openLocalSession(session_id=None, auto_join=False):
-    return Session(session=session_id, auto_join=auto_join)
+def openLocalSession(session_id=None, auto_join=False, debug=False):
+    return Session(session=session_id, auto_join=auto_join,
+                   backend=LocalBackend(
+                        debug=debug
+                   ))

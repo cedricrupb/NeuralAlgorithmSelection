@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package graph_proto;
+
+message Nodes {
+
+  repeated int32 row = 1;
+  repeated int32 column = 2;
+  repeated double content = 3;
+
+}
+
+message Edges {
+
+  repeated int32 row = 1;
+  repeated int32 column = 2;
+
+  enum EdgeType {
+    CFG = 0;
+    DD = 1;
+    CD = 2;
+    S = 3;
+    UNK = 4;
+  }
+
+  repeated EdgeType types = 3;
+}
+
+message SVGraph {
+
+  Nodes nodes = 1;
+  Edges edges = 2;
+
+  enum Category {
+    reachability = 0;
+    termination = 1;
+    memory = 2;
+    overflow = 3;
+  }
+
+  Category category = 3;
+
+  repeated float preferences = 4;
+
+}
+
+message Dataset {
+
+  repeated SVGraph train = 1;
+  repeated SVGraph test = 2;
+
+}
