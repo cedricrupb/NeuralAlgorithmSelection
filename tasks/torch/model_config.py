@@ -134,6 +134,12 @@ def get_info(dataset_path):
 
 def partial_to_model(config, dataset_path):
 
+    drop = 0.1
+
+    if 'global_dropout' in config:
+        drop = config['global_dropout']
+        del config['global_dropout']
+
     if 'layers' in config:
         config = layered_to_model(config)
 
@@ -147,7 +153,7 @@ def partial_to_model(config, dataset_path):
     lin_id = 'out_lin'
 
     config['modules'][drop_id] = {
-        'type': 'torch::Dropout', 'p': 0.1
+        'type': 'torch::Dropout', 'p': drop
     }
     config['modules'][lin_id] = {
         'type': 'torch::Linear', 'node_dim': out

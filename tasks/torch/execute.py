@@ -123,6 +123,8 @@ def execute_model(tools, config, dataset_path, ret=None, env=None):
 
     test_res = test(tools, model, dataset_path)
 
+    test_res['num_params'] = sum(p.numel() for p in model.parameters())
+
     if 'name' in config:
         store_model(
             env.get_db(), config, model, tools,
@@ -157,7 +159,6 @@ def build_model(config):
 if __name__ == '__main__':
 
     config = {
-        'name': 'test',
         'model': {
             'layers': [
                 {'type': 'embed', 'node_dim': 32},
@@ -176,14 +177,14 @@ if __name__ == '__main__':
         'dataset': {
             'key': '2019_all_categories_all_10000',
             'competition': '2019',
-            'category': 'reachability',
+            'category': None,
             'test_ratio': 0.2,
             'min_tool_coverage': 0.8,
             'ast_type': 'bag'
         },
         'train': {
-            'loss': 'tasks::Rank_BCE',
-            'epoch': 200,
+            'loss': 'masked::HingeLoss',
+            'epoch': 50,
             'batch': 32,
             'shuffle': True,
             'augment': False,
@@ -191,8 +192,8 @@ if __name__ == '__main__':
                           'betas': [0.9, 0.98],
                           'eps': 1e-9},
             'scheduler': {
-                'type': 'torch::StepLR', 'mode': 'epoch',
-                'step_size': 50, 'gamma': 0.5
+                'type': 'torch::CosineAnnealingLR', 'mode': 'epoch',
+                'T_max': 50, 'eta_min': 0.001
             },
             'validate': {
                 'checkpoint_step': 0,
@@ -200,7 +201,7 @@ if __name__ == '__main__':
                 'split': 0.1
             }
         },
-        'test': 'spearmann'
+        'test': {'type': 'category', 'scores': 'spearmann'}
     }
 
     train_test = build_model(config)

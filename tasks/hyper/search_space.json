@@ -1,0 +1,7 @@
+{
+  "model_depth": [0, 1, 2, 3, 4, 5],
+  "embed_size": [32, 64],
+  "hidden_size": [16, 32, 64],
+  "batch_size": [32, 128],
+  "loss_func": ["hinge", "bce"]
+}

@@ -7,10 +7,24 @@ from tasks.torch import loss
 from torch_geometric.data import DataLoader
 import copy
 import random
+import math
 
 from tasks.utils import train_utils, rank_scores, element_scores
 from tasks.data import proto_data
 from tasks.torch.graph import build_graph
+
+
+class SuperConverge(lr_scheduler.LambdaLR):
+
+    def __init__(self, optimizer, d_model, warmup, last_epoch=-1):
+        self.mult = 1/math.sqrt(d_model)
+        self.warmup = 1/math.sqrt(warmup**3)
+
+        super().__init__(optimizer, lambda x: self.calc_lr(x), last_epoch)
+
+    def calc_lr(self, num_steps):
+        num_steps = num_steps + 1
+        return self.mult * min(1/math.sqrt(num_steps), num_steps*self.warmup)
 
 
 def prepare_inst_dict(D, keys):
@@ -67,19 +81,24 @@ def instantiate_loss(type, config):
 
 
 def instantiate_scheduler(type, config):
+    sched = None
+    mode = 'epoch'
+
+    if 'mode' in config:
+        mode = config['mode']
+        del config['mode']
+
+    if type == 'tasks::SuperConverge':
+        sched = SuperConverge(**config)
 
     if type.startswith('torch::'):
         type_ = type[7:]
         mod = lr_scheduler
 
-        mode = 'epoch'
+        sched = instantiate_obj(mod, type_, config)
 
-        if 'mode' in config:
-            mode = config['mode']
-            del config['mode']
-
-        return {'obj': instantiate_obj(mod, type_, config),
-                'mode': mode}
+    if sched is not None:
+        return {'obj': sched, 'mode': mode}
 
     raise ValueError("Unknown type: %s" % type)
 
