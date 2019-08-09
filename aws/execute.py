@@ -199,7 +199,7 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('config', type="str")
+    parser.add_argument('config')
     parser.add_argument('train_file')
     parser.add_argument('test_file')
     parser.add_argument("--checkpoint", '-c')
