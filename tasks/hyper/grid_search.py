@@ -1,16 +1,17 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
+from taskflow.distributed import openRemoteSession
 from tasks.hyper.exec_handler import cfg_egin_execute
 
 import copy
 
 
 grid = {
-  "model_depth": [0, 1, 2, 3, 4, 5],
-  "embed_size": [32, 64],
+  "model_depth": [2],
+  "embed_size": [64],
   "hidden_size": [16, 32, 64],
-  "batch_size": [32, 128],
-  "loss_func": ["hinge", "bce"]
+  "batch_size": [32],
+  "loss_func": ["relational", "bce"]
 }
 
 
@@ -69,9 +70,11 @@ def grid_supplier(base_name, dataset_key, competition, epoch=50,
 
 if __name__ == '__main__':
     grid_sup = grid_supplier(
-                'all_10000_test', '2019_all_categories_all_10000',
+                'all_10000_rel', '2019_all_categories_all_10000',
                 '2019')
     grid_fork = tsk.fork(grid_sup)
     egin = cfg_egin_execute(grid_fork)
-    with backend.openLocalSession(auto_join=True) as sess:
+    with openRemoteSession(
+        session_id="317e3bb0-caf4-4f57-9975-0e782371a866"
+    ) as sess:
         sess.run(egin)

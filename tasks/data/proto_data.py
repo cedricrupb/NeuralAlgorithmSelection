@@ -19,23 +19,23 @@ import traceback
 
 def select_category(category):
     if category == 'reachability':
-        category = gd.SVGraph.Category.reachability
+        category = gd.SVGraph.Category.Value('reachability')
     elif category == 'termination':
-        category = gd.SVGraph.Category.termination
+        category = gd.SVGraph.Category.Value('termination')
     elif category == 'memory':
-        category = gd.SVGraph.Category.memory
+        category = gd.SVGraph.Category.Value('memory')
     elif category == 'overflow':
-        category = gd.SVGraph.Category.overflow
+        category = gd.SVGraph.Category.Value('overflow')
     return category
 
 
 def select_edge_type(type_id):
     if type_id == 0:
-        return gd.Edges.EdgeType.CFG
+        return gd.Edges.EdgeType.Value('CFG')
     elif type_id == 1:
-        return gd.Edges.EdgeType.DD
+        return gd.Edges.EdgeType.Value('DD')
     elif type_id == 2:
-        return gd.Edges.EdgeType.CD
+        return gd.Edges.EdgeType.Value('CD')
 
 
 def create_data(data, category, preference):
@@ -71,8 +71,86 @@ def create_data(data, category, preference):
 
 
 @task_definition()
+def download_plain_lmdb(name, tools, competition, index, category=None,
+                        ast_bag=False, filter=None, env=None):
+
+    cat_name = category
+    if cat_name is None:
+        cat_name = 'all'
+    out = os.path.join(env.get_cache_dir(),
+                       name)
+
+    if os.path.exists(os.path.join(out, 'data.mdb')):
+        return out
+
+    if not os.path.exists(out):
+        os.makedirs(out)
+
+    db = env.get_db()
+
+    index = set(index)
+
+    graph = db.ast_graph
+    if ast_bag:
+        graph = db.ast_bag
+
+    cur = graph.find({'competition': competition},
+                     no_cursor_timeout=True)
+
+    fs = GridFS(db)
+
+    labels = train_utils.get_labels(db, competition, category=category)
+
+    filter = train_utils.build_filter_func(filter)
+
+    with lmdb.open(out, map_size=1048576*100000,
+                   sync=False,
+                   metasync=False,
+                   map_async=True,
+                   writemap=True,
+                   max_dbs=2) as lm:
+        with lm.begin(write=True) as txn:
+            try:
+                train_db = lm.open_db('data'.encode('ascii'), txn)
+                train_i = 0
+                for obj in tqdm(cur, total=cur.count()):
+
+                    if obj['name'] not in index:
+                        continue
+
+                    try:
+                        file = fs.get(obj['graph_ref']).read().decode('utf-8')
+                        file = json.loads(file)
+
+                        for cat, lookup in labels.items():
+                            if obj['name'] in lookup:
+                                if not filter(obj['name']):
+                                    continue
+                                pref = lookup[obj['name']]
+                                pref = train_utils.get_preferences(pref, tools)
+                                data = create_data(file, cat, pref)
+                                data_ser = data.SerializeToString()
+                                id = 'graph_%d' % train_i
+                                txn.put(
+                                    id.encode('ascii'),
+                                    data_ser,
+                                    db=train_db
+                                )
+                                train_i += 1
+
+                    except Exception:
+                        traceback.print_exc()
+                        continue
+            finally:
+                cur.close()
+
+        lm.sync(True)
+    return out
+
+
+@task_definition()
 def download_lmdb(tools, competition, train, test, category=None,
-                  ast_bag=False, env=None):
+                  ast_bag=False, filter=None, env=None):
 
     cat_name = category
     if cat_name is None:
@@ -103,6 +181,8 @@ def download_lmdb(tools, competition, train, test, category=None,
 
     labels = train_utils.get_labels(db, competition, category=category)
 
+    filter = train_utils.build_filter_func(filter)
+
     with lmdb.open(out, map_size=1048576*100000,
                    sync=False,
                    metasync=False,
@@ -129,13 +209,16 @@ def download_lmdb(tools, competition, train, test, category=None,
 
                         for cat, lookup in labels.items():
                             if obj['name'] in lookup:
+                                if train_t and not filter(obj['name']):
+                                    continue
                                 pref = lookup[obj['name']]
                                 pref = train_utils.get_preferences(pref, tools)
-                                data = create_data(file, cat, pref).SerializeToString()
+                                data = create_data(file, cat, pref)
+                                data_ser = data.SerializeToString()
                                 id = 'graph_%d' % (train_i if train_t else test_i)
                                 txn.put(
                                     id.encode('ascii'),
-                                    data,
+                                    data_ser,
                                     db=(train_db if train_t else test_db)
                                 )
                                 if train_t:
@@ -280,8 +363,7 @@ def proto_to_flat(proto, features=148):
 
     x = th.sparse.FloatTensor(index, nodes, th.Size([nodes_len, features]))
     del index, nodes
-    x = x.to_dense().sum(dim=0)
-    x = x.unsqueeze(0)
+    x = x.to_dense()
 
     y = th.tensor(proto.preferences, dtype=th.float)
     y = y.unsqueeze(0)
@@ -327,7 +409,7 @@ class LMDBDataset(Dataset):
             slice_ix = self._indices[index]
             return SliceDataset(self, slice_ix)
 
-        assert index <= len(self), 'index range error'
+        assert index < len(self), 'index range error for ix: %i' % index
         graph_key = 'graph_%d' % (self._indices[index])
 
         with self._env.begin(write=False, db=self._db) as txn:

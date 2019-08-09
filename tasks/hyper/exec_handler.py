@@ -15,6 +15,9 @@ def translate_loss(loss_id):
     if loss_id == 'bce':
         return 'tasks::Rank_BCE'
 
+    if loss_id == 'relational':
+        return 'tasks::Relational_Log_Loss'
+
 
 @task_definition()
 def cfg_egin_execute(config, env=None):
@@ -39,7 +42,7 @@ def cfg_egin_execute(config, env=None):
         'readout': model_readout
     }
 
-    config = {
+    cfg = {
         'model': model,
         'dataset': {
             'key': config['dataset_key'],
@@ -61,8 +64,8 @@ def cfg_egin_execute(config, env=None):
                 'eps': 1e-9
             },
             'scheduler': {
-                'type': 'torch::CosineAnnealingLR', 'mode': 'epoch',
-                'T_max': config['epoch'], 'eta_min': 0.0001
+                'type': 'tasks::SuperConverge', 'mode': 'step',
+                'warmup': 40, 'd_model': 32
             },
             'validate': {
                 'checkpoint_step': 0,
@@ -73,7 +76,10 @@ def cfg_egin_execute(config, env=None):
         'test': {'type': 'category', 'scores': 'spearmann'}
     }
 
-    task = build_model(config)
+    if 'name' in config:
+        cfg['name'] = config['name']
+
+    task = build_model(cfg)
     with backend.openLocalSession() as sess:
         res = sess.run(task)
 

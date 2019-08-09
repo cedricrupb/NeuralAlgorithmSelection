@@ -137,7 +137,7 @@ def prepare_train_data(train_data):
     return transform, train_data
 
 
-def expand_and_label(labels, full=False):
+def expand_and_label(labels, full=False, index=False):
 
     plac_label = []
 
@@ -176,7 +176,7 @@ def rank_score(y_true, y_pred, tools):
 
     return [
         spearmann_score(
-            tu.get_ranking(y_pred[i, :], tools), tu.get_ranking(y_true[i, :], tools)
+            tu.get_ranking(y_pred[i, :], tools, False), tu.get_ranking(y_true[i, :], tools)
         )
         for i in range(y_true.shape[0])
     ]
@@ -184,7 +184,7 @@ def rank_score(y_true, y_pred, tools):
 
 @task_definition()
 def lr_train_test(key, tools, train_index, test_index, competition,
-                  category=None, env=None):
+                  category=None, raw_result=False, env=None):
     if env is None:
         raise ValueError("train_test_split needs an execution context")
 
@@ -192,6 +192,8 @@ def lr_train_test(key, tools, train_index, test_index, competition,
     lr = db.experiments
 
     f = lr.find_one({'key': key, 'type': 'logistic_regression'})
+
+    print((key))
 
     if f is not None:
         return f['spearmann_mean'], f['spearmann_std']
@@ -249,6 +251,26 @@ def lr_train_test(key, tools, train_index, test_index, competition,
     pred = np.vstack(pred).transpose()
     scores = rank_score(test_labels, pred, tools)
 
+    if raw_result:
+
+        scores = {
+            k: scores[i] for i, k in enumerate(test_index)
+        }
+
+        lr.insert_one({
+            'key': key,
+            'competition': competition,
+            'category': category,
+            'type': 'logistic_regression',
+            'train_size': len(train_index),
+            'test_size': pred.shape[0],
+            'binary_accuracies': quality,
+            'mean_acc': np.mean(quality),
+            'spearmann_raw': scores,
+        })
+
+        return scores
+
     mean_score = np.mean(scores)
     std_score = np.std(scores)
 
@@ -271,32 +293,37 @@ def lr_train_test(key, tools, train_index, test_index, competition,
 
 
 if __name__ == '__main__':
-    dataset_key = '2019_all_categories_all_10000'
-    lr_key = '2019_all_categories_all_10000'
-    limit = 10000
-    competition = "2019"
-    category = None
+    res = []
+    for i in range(10):
+        dataset_key = 'rank18_overflow_%i' % i
+        lr_key = 'rank18_overflow_lr2_%i' % i
+        limit = 10000
+        competition = "2018"
+        category = "overflow"
 
-    condition = {}
-    for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
-        condition[key] = limit
+        condition = {}
+        for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
+            condition[key] = limit
 
-    filter = tu.filter_by_stat(competition, condition)
-    split = tu.train_test(dataset_key, competition, category=category,
-                          test_ratio=0.2, filter=filter)
-    cov = tu.tool_coverage(
-            competition, filter=split[0], category=category
-    )
-    tools = tu.covered_tools(
-        dataset_key, competition, cov, min_coverage=0.8
-    )
+        filter = tu.filter_by_stat(competition, condition)
+        split = tu.train_test(dataset_key, competition, category=category,
+                              test_ratio=0.2, filter=filter)
+        cov = tu.tool_coverage(
+                competition, filter=split[0], category=category
+        )
+        tools = tu.covered_tools(
+            dataset_key, competition, cov, min_coverage=0.8
+        )
 
-    train_index, test_index = split[0], split[1]
+        train_index, dex = split[0], split[1]
 
-    lr = lr_train_test(
-        lr_key, tools, train_index, test_index,
-        competition, category
-    )
+        lr = lr_train_test(
+            lr_key, tools, train_index, dex,
+            competition, category
+        )
 
-    with backend.openLocalSession() as sess:
-        sess.run(lr)
+        with backend.openLocalSession() as sess:
+            mean, _ = sess.run(lr).join()
+            res.append(mean)
+
+    print("Acc: %f (+- %f)" % (np.mean(res), np.std(res)))

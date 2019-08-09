@@ -132,7 +132,7 @@ class GraphModule(th.nn.Module):
 
             for k, e in list(local_args.items()):
                 if len(e) > 1:
-                    local_args[k] = th.cat(e, dim=1)
+                    local_args[k] = th.cat([_e.float() for _e in e], dim=1)
                 else:
                     local_args[k] = e[0]
 

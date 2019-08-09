@@ -7,9 +7,32 @@ def layer_module(config):
     type = config['type']
     del config['type']
 
+    if type == 'linear':
+        config['type'] = 'torch::Linear'
+        return config, ['x']
+
     if type == 'embed':
         config['type'] = 'tasks::Embedding'
         return config, ['x']
+
+    if type == 'ex_entry':
+        config['type'] = 'mx::Entry'
+        return config, ['x']
+
+    if type == 'con_gin':
+        cfg = {'type': 'mx::ConGIN', 'node_dim': config['node_dim'],
+               'hidden': config['hidden']}
+        return cfg, ['x', 'edge_index', 'edge_attr']
+
+    if type == 'dense_gin':
+        cfg = {'type': 'dense::DenseGIN', 'node_dim': config['node_dim'],
+               'hidden': config['hidden']}
+        return cfg, ['x', 'edge_index', 'edge_attr']
+
+    if type == 'dense_egin':
+        cfg = {'type': 'dense::DenseEGIN', 'node_dim': config['node_dim'],
+               'hidden': config['hidden']}
+        return cfg, ['x', 'edge_index', 'edge_attr']
 
     if type == 'edge_gin':
         cfg = {'type': 'tasks::CEdgeGIN', 'node_dim': config['node_dim']}
@@ -35,19 +58,82 @@ def layer_module(config):
         cfg['edge_nn'] = edge
         return cfg, ['x', 'edge_index', 'edge_attr']
 
+    if type == 'simple_edge_gin':
+        cfg = {'type': 'tasks::CSEdgeGIN', 'node_dim': config['node_dim']}
+        gin = {}
+        if 'hidden' in config:
+            gin['hidden'] = config['hidden']
+            if 'dropout' in config:
+                gin['dropout'] = config['dropout']
+            if 'norm' in config:
+                gin['norm'] = config['norm']
+            else:
+                gin['norm'] = False
+        cfg['gin_nn'] = gin
+        return cfg, ['x', 'edge_index', 'edge_attr']
+
+    if type == 'att_edge_gin':
+        cfg = {'type': 'tasks::CAEdgeGIN', 'node_dim': config['node_dim']}
+        gin = {}
+        if 'hidden' in config:
+            gin['hidden'] = config['hidden']
+            if 'dropout' in config:
+                gin['dropout'] = config['dropout']
+            if 'norm' in config:
+                gin['norm'] = config['norm']
+            else:
+                gin['norm'] = False
+        cfg['gin_nn'] = gin
+        return cfg, ['x', 'edge_index', 'edge_attr']
+
+    if type == 'gin':
+        cfg = {'type': 'tasks::CGIN', 'node_dim': config['node_dim']}
+        gin = {}
+        if 'hidden' in config:
+            gin['hidden'] = config['hidden']
+            if 'dropout' in config:
+                gin['dropout'] = config['dropout']
+            if 'norm' in config:
+                gin['norm'] = config['norm']
+            else:
+                gin['norm'] = False
+        cfg['gin_nn'] = gin
+        return cfg, ['x', 'edge_index']
+
+    if type == 'gcn':
+        cfg = {'type': 'geo::GCNConv', 'node_dim': config['node_dim']}
+        return cfg, ['x', 'edge_index']
+
+    if type == 'sage':
+        cfg = {'type': 'geo::SAGEConv', 'node_dim': config['node_dim']}
+        return cfg, ['x', 'edge_index']
+
+    if type == 'gat':
+        cfg = {'type': 'geo::GATConv', 'node_dim': config['node_dim'],
+               'heads': 8, 'dropout': 0.8}
+        return cfg, ['x', 'edge_index']
+
+    if type == 'res_gcn':
+        cfg = {'type': 'dense::ResGCN',
+               'bottleneck': config['bottleneck']}
+        return cfg, ['x', 'edge_index', 'edge_attr']
+
     raise ValueError("Unknown type: %s" % type)
 
 
-def readout_module(type):
+def readout_module(type, config):
 
     if type == 'cga':
         return 'tasks::cga'
 
     if type == 'add':
-        return 'geo::global_sum_pool'
+        return 'geo::global_add_pool'
 
     if type == 'max':
         return 'geo::global_max_pool'
+
+    if type == 'ex_cga':
+        return {'type': 'mx::cga', 'out_channels': config['hid_channels']}
 
     return type
 
@@ -92,20 +178,21 @@ def layered_to_model(config):
 
         id = 'm%i' % idc
         idc += 1
-        modules[id] = readout_module(type)
+        modules[id] = readout_module(type, L)
 
         bind.append(['source', 'batch', 'batch', id])
 
-        if type == 'cga':
+        if type == 'cga' or type == 'ex_cga':
             bind.append(['source', 'category', 'condition', id])
 
         bind.append([layers[of], 'forward', 'x', id])
 
-        for pos in cond:
-            if pos < len(readouts) and type == 'cga':
-                bind.append([
-                    readouts[pos], 'forward', 'condition', id
-                ])
+        if type == 'cga' or type == 'ex_cga':
+            for pos in cond:
+                if pos < len(readouts):
+                    bind.append([
+                        readouts[pos], 'forward', 'condition', id
+                    ])
         readouts.append(id)
 
     for r in readouts:
@@ -132,13 +219,48 @@ def get_info(dataset_path):
     return info
 
 
+def build_global(global_att, config, out):
+
+    input = out
+
+    if 'dropout' in global_att:
+        drop = global_att['dropout']
+        if drop > 0:
+            input = 'out_drop'
+            config['modules'][input] = {
+                'type': 'torch::Dropout', 'p': drop
+            }
+            config['bind'].append([input, 'forward', 'input', out])
+
+    lin_id = 'out_lin'
+    config['modules'][lin_id] = {
+        'type': 'torch::Linear', 'node_dim': input
+    }
+    input = lin_id
+
+    if 'constraint' in global_att:
+        gc = global_att['constraint']
+        if gc:
+            config['bind'].append(['source', 'category', 'input', input])
+
+    bind = []
+    for B in config['bind']:
+        if B[3] == 'sink':
+            bind.append([B[0], B[1], 'input', input])
+        else:
+            bind.append(B)
+    bind.append([lin_id, 'forward', 'input', 'sink'])
+    config['bind'] = bind
+
+
 def partial_to_model(config, dataset_path):
 
-    drop = 0.1
+    global_att = {}
 
-    if 'global_dropout' in config:
-        drop = config['global_dropout']
-        del config['global_dropout']
+    for k, v in list(config.items()):
+        if k.startswith('global_'):
+            global_att[k[7:]] = v
+            del config[k]
 
     if 'layers' in config:
         config = layered_to_model(config)
@@ -149,26 +271,7 @@ def partial_to_model(config, dataset_path):
 
     config.update(info)
 
-    drop_id = 'out_drop'
-    lin_id = 'out_lin'
-
-    config['modules'][drop_id] = {
-        'type': 'torch::Dropout', 'p': drop
-    }
-    config['modules'][lin_id] = {
-        'type': 'torch::Linear', 'node_dim': out
-    }
-    config['bind'].append([drop_id, 'forward', 'input', lin_id])
-
-    bind = []
-
-    for B in config['bind']:
-        if B[3] == 'sink':
-            bind.append([B[0], B[1], 'input', drop_id])
-        else:
-            bind.append(B)
-    bind.append([lin_id, 'forward', 'input', 'sink'])
-    config['bind'] = bind
+    build_global(global_att, config, out)
 
     return config
 

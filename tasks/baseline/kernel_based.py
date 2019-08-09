@@ -697,13 +697,35 @@ def load_kernel_cached(db, kernel_id, path):
 def load_kernel_sliced(db, kernel_id, train_index, test_index, cache):
     info, K = load_kernel_cached(db, kernel_id, cache)
     idx = {k: i for i, k in enumerate(info['row_ids'])}
-    trix = {k: idx[k] for k in train_index}
-    teix = {k: idx[k] for k in test_index}
+    trix = {k: idx[k] for k in train_index if k in idx}
+    teix = {k: idx[k] for k in test_index if k in idx}
 
-    tr_slice = [trix[k] for k in train_index]
-    te_slice = [teix[k] for k in test_index]
+    tr_slice = [trix[k] for k in train_index if k in trix]
+    te_slice = [teix[k] for k in test_index if k in teix]
 
     return trix, K[tr_slice, :][:, tr_slice], teix, K[te_slice, :][:, tr_slice]
+
+
+def extract_svm(train_index, svc):
+    coefs = {}
+
+    coef = svc.dual_coef_
+    minix = len(train_index) + 1
+    mix = 0
+    for i in range(coef.shape[1]):
+        ix = svc.support_[i]
+        mix = max(mix, ix)
+        minix = min(minix, ix)
+        print((i, ix, len(train_index)))
+        # print(train_index[ix])
+        # coefs[train_index[ix]] = coef[0, i]
+
+    print("Min: %i Max: %i" % (minix, mix))
+    exit()
+    return {
+        'coef': coefs,
+        'intercept': svc.intercept_[0]
+    }
 
 
 def train_svm(kernel, label, C=[0.01]):
@@ -728,7 +750,7 @@ def train_svm(kernel, label, C=[0.01]):
 
 @task_definition()
 def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
-                   category=None, C=None, env=None):
+                   category=None, C=None, raw_result=False, env=None):
     if env is None:
         raise ValueError("train_test_split needs an execution context")
 
@@ -741,6 +763,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
         return f['spearmann_mean'], f['spearmann_std']
 
     print("Localize train data")
+    tix = train_index
     train_index, train_kernel, test_index, test_kernel = load_kernel_sliced(
         db, kernel_id, train_index, test_index, env.get_cache_dir()
     )
@@ -766,7 +789,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
     quality = []
 
     if C is None:
-        C = [0.01]
+        C = [0.001, 0.01, 0.1, 1.0, 100, 1000]
 
     for t_index, t_labels in train_labels:
         print("Train clf %i" % (len(pred) + 1))
@@ -791,6 +814,27 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
     pred = np.vstack(pred).transpose()
     scores = loader.rank_score(test_labels, pred, tools)
 
+    if raw_result:
+
+        scores = {
+            k: scores[i] for i, k in enumerate(test_index)
+        }
+
+        lr.insert_one({
+            'key': key,
+            'competition': competition,
+            'category': category,
+            'type': 'kernel_svm',
+            'train_size': len(train_index),
+            'test_size': pred.shape[0],
+            'kernel_id': kernel_id,
+            'binary_accuracies': quality,
+            'mean_acc': np.mean(quality),
+            'spearmann_raw': scores,
+        })
+
+        return scores
+
     mean_score = np.mean(scores)
     std_score = np.std(scores)
 
@@ -803,6 +847,7 @@ def svm_train_test(key, tools, kernel_id, train_index, test_index, competition,
         'type': 'kernel_svm',
         'train_size': len(train_index),
         'test_size': pred.shape[0],
+        'kernel_id': kernel_id,
         'binary_accuracies': quality,
         'mean_acc': np.mean(quality),
         'spearmann_mean': mean_score,
@@ -848,32 +893,37 @@ def percent_duplicate(competition, env=None):
 
 
 if __name__ == '__main__':
-    dataset_key = '2019_categories_all_10000'
-    lr_key = 'kernel_2019_1_cv2'
-    limit = 10000
-    competition = "2019"
-    category = None
+    res = []
+    for i in range(10):
+        dataset_key = 'rank18_overall_%i' % i
+        lr_key = 'rank18_overall_2018_2_it_%i' % i
+        limit = 10000
+        competition = "2018"
+        category = None
 
-    condition = {}
-    for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
-        condition[key] = limit
+        condition = {}
+        for key in ['cfg_nodes', 'cfg_edges', 'pdg_edges']:
+            condition[key] = limit
 
-    filter = tu.filter_by_stat(competition, condition)
-    split = tu.train_test(dataset_key, competition, category=category,
-                          test_ratio=0.2, filter=filter)
-    cov = tu.tool_coverage(
-            competition, filter=split[0], category=category
-    )
-    tools = tu.covered_tools(
-        dataset_key, competition, cov, min_coverage=0.8
-    )
+        filter = tu.filter_by_stat(competition, condition)
+        split = tu.train_test(dataset_key, competition, category=category,
+                              test_ratio=0.2, filter=filter)
+        cov = tu.tool_coverage(
+                competition, filter=split[0], category=category
+        )
+        tools = tu.covered_tools(
+            dataset_key, competition, cov, min_coverage=0.8
+        )
 
-    train_index, test_index = split[0], split[1]
+        train_index, test_index = split[0], split[1]
 
-    lr = svm_train_test(
-        lr_key, tools, 'norm_2019_1', train_index, test_index,
-        competition, category, C=[0.001, 0.01, 0.1, 1.0, 100, 1000]
-    )
+        lr = svm_train_test(
+            lr_key, tools, 'norm_2018_2', train_index, test_index,
+            competition, category, C=[0.001, 0.01, 0.1, 1.0, 100, 1000]
+        )
 
-    with backend.openLocalSession(auto_join=True) as sess:
-        sess.run(lr)
+        with backend.openLocalSession(auto_join=True) as sess:
+            mean, _ = sess.run(lr)
+            res.append(mean)
+
+    print("Acc: %f (+- %f)" % (np.mean(res), np.std(res)))

@@ -365,7 +365,9 @@ def _execute_funcs(run_id, calls, kwargs, bindings):
                 "Function [id = %s] is unknown." % call
             )
 
-        bind.update(function['environment'])
+        bind.update(
+                _preprocess_args(function['environment'])
+                )
 
         for dep in function['dependency_vars']:
             if dep not in bind:

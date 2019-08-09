@@ -12,19 +12,24 @@ import math
 from tasks.utils import train_utils, rank_scores, element_scores
 from tasks.data import proto_data
 from tasks.torch.graph import build_graph
+from tqdm import tqdm
 
 
-class SuperConverge(lr_scheduler.LambdaLR):
+class SuperConverge(lr_scheduler._LRScheduler):
 
     def __init__(self, optimizer, d_model, warmup, last_epoch=-1):
         self.mult = 1/math.sqrt(d_model)
         self.warmup = 1/math.sqrt(warmup**3)
 
-        super().__init__(optimizer, lambda x: self.calc_lr(x), last_epoch)
+        super().__init__(optimizer, last_epoch)
 
     def calc_lr(self, num_steps):
         num_steps = num_steps + 1
         return self.mult * min(1/math.sqrt(num_steps), num_steps*self.warmup)
+
+    def get_lr(self):
+        return [self.calc_lr(self.last_epoch)
+                for base_lr in self.base_lrs]
 
 
 def prepare_inst_dict(D, keys):
@@ -172,6 +177,18 @@ class ModelOptimizer:
         self.loss = loss
         self.scheduler = scheduler
 
+    def resume(self, model, optim, scheduler):
+        self.model.load_state_dict(model)
+        self.optim.load_state_dict(optim)
+        self.scheduler.load_state_dict(scheduler)
+
+    def checkpoint(self):
+        return {
+            'model': self.model.state_dict(),
+            'optim': self.optim.state_dict(),
+            'scheduler': self.scheduler.state_dict()
+        }
+
     def train(self, X, y):
         self.model.train()
         self.optim.zero_grad()
@@ -289,14 +306,21 @@ class Validator:
         self.dataset = DataLoader(self.dataset, batch_size=32, num_workers=6)
         return dataset[validate_size:]
 
-    def __call__(self, model, device, step, classes=15, loss_func=None):
+    def __call__(self, model, device, step, classes=15, loss_func=None,
+                 norm=None):
         if self.checkpoint(step):
             model.eval()
             val_loss = []
             val_score = []
 
+            if norm is None:
+                def id(x):
+                    return x
+                norm = id
+
             for batch in self.dataset:
                 batch = batch.to(device)
+                batch.x = norm(batch.x)
                 out = model(batch)
                 if loss_func is not None:
                     loss = loss_func(out, batch.y)
@@ -404,11 +428,15 @@ def print_log(epoch, iteration, loss, val_loss=None, val_score=None):
     print("Epoch %i:%i Train Loss %f" % (epoch, iteration, loss))
 
 
+def isnan(x):
+    return th.isnan(x).any().item()
+
+
 class ModelTrainer:
 
     def __init__(self, epoch, batch, optimizer,
                  dataset_op, shuffle=True, validate=None,
-                 scheduler=None):
+                 norm=False, scheduler=None):
         self.epoch = epoch
         self.batch = batch
         self.optimizer = optimizer
@@ -416,6 +444,9 @@ class ModelTrainer:
         self.validate = validate
         self.scheduler = scheduler
         self.shuffle = shuffle
+        self.norm = norm
+        self.total_batches = -1
+        self.last_epoch = 0
 
     def _prepare(self, dataset_path):
         dataset = self.dataset_op(dataset_path)
@@ -428,6 +459,64 @@ class ModelTrainer:
             shuffle=self.shuffle, num_workers=6
         )
 
+    def _norm(self, loader, device):
+
+        if not self.norm:
+            def id(x):
+                return x
+            return id
+
+        cnt = th.zeros(1, dtype=th.double)
+        fst_moment = None
+        snd_moment = None
+
+        for i, batch in tqdm(enumerate(loader)):
+            self.total_batches = max(self.total_batches, i)
+            batch = batch.to(device)
+
+            x = batch.x.double()
+            dim = x.size(1)
+
+            if fst_moment is None:
+                fst_moment = th.zeros(dim, dtype=th.double)
+                snd_moment = th.zeros(dim, dtype=th.double)
+
+            sample = x.size(0)
+            sample = (cnt + sample).double()
+
+            while True:
+                sum_ = th.sum(x, dim=0, dtype=th.double)
+                sum_sq = th.sum(th.pow(x, 2), dim=0, dtype=th.double)
+                inter_fst = (cnt * fst_moment + sum_)
+                inter_fst = th.div(inter_fst, sample)
+                inter_snd = (cnt * snd_moment + sum_sq)
+                inter_snd = th.div(inter_snd, sample)
+                if not isnan(inter_fst) and not isnan(inter_snd):
+                    break
+                else:
+                    print("NaN")
+
+            fst_moment = inter_fst
+            snd_moment = inter_snd
+
+            cnt = sample
+
+        mean = fst_moment.float()
+        eps = 1e-09
+        std = th.sqrt(snd_moment - fst_moment ** 2 + eps).float()
+
+        def norm(x):
+            batch_mean = mean.expand_as(x)
+            batch_std = std.expand_as(x)
+            prep = (x - batch_mean) / batch_std
+            return prep
+
+        return norm
+
+    def resume(self, epoch, model, optim, scheduler):
+        self.optimizer.resume(model, optim, scheduler)
+        self.last_epoch = epoch
+
     def train_iter(self, tools, dataset_path):
 
         loader = self._prepare(dataset_path)
@@ -435,20 +524,29 @@ class ModelTrainer:
         device = th.device('cuda' if th.cuda.is_available() else 'cpu')
         self.optimizer.to(device)
 
-        for ep in range(self.epoch):
+        norm_func = self._norm(loader, device)
 
-            for i, batch in enumerate(loader):
+        for ep in range(self.last_epoch, self.epoch):
+
+            iterator = enumerate(loader)
+            iterator = tqdm(iterator) if self.total_batches == -1 else\
+                tqdm(iterator, total=self.total_batches)
+
+            for i, batch in iterator:
                 batch = batch.to(device)
+                batch.x = norm_func(batch.x)
                 train_loss = self.optimizer.train(
                     batch, batch.y
                 )
+
+                self.total_batches = max(self.total_batches, i)
 
                 if self.validate is not None:
                     res = self.validate(
                         self.optimizer.model,
                         device, i,
                         loss_func=self.optimizer.loss,
-                        classes=len(tools)
+                        classes=len(tools), norm=norm_func
                     )
                     if res is not None:
                         val_score, val_loss = res
@@ -478,7 +576,7 @@ class ModelTrainer:
                       alt={'config': cfg})
 
 
-def build_training(config, model):
+def build_training(config, model, data_key='train'):
 
     config = instantiate_config(config, model)
 
@@ -512,8 +610,12 @@ def build_training(config, model):
     if 'augment' not in config:
         config['augment'] = False
 
+    if isinstance(config['shuffle'], int):
+        random.seed(config['shuffle'])
+        th.manual_seed(config['shuffle'])
+
     config['dataset_op'] = DatasetOp(
-        'train', config['shuffle'], config['augment']
+        data_key, config['shuffle'], config['augment']
     )
     del config['augment']
 

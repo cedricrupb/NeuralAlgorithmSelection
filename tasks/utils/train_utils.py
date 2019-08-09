@@ -1,6 +1,6 @@
 import taskflow as tsk
 from taskflow import task_definition, backend
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from tqdm import tqdm
 
 import numpy as np
@@ -20,20 +20,7 @@ def build_filter_func(filter):
     return filter_func
 
 
-@task_definition()
-def train_test(key, competition, test_ratio=0.1,
-               category=None, filter=None, env=None):
-
-    if env is None:
-        raise ValueError("train_test_split needs an execution context")
-
-    db = env.get_db()
-    data_split = db.data_split
-
-    f = data_split.find_one({'key': key, 'competition': competition})
-
-    if f is not None:
-        return f['train'], f['test']
+def retrieve_benchmark_names(db, competition, category=None, filter=None):
 
     search = {
         'svcomp': competition,
@@ -59,6 +46,28 @@ def train_test(key, competition, test_ratio=0.1,
         if filter(name_obj['_id']):
             names.append(name_obj['_id'])
 
+    return names
+
+
+@task_definition()
+def train_test(key, competition, test_ratio=0.1,
+               category=None, filter=None, env=None):
+
+    if env is None:
+        raise ValueError("train_test_split needs an execution context")
+
+    db = env.get_db()
+    data_split = db.data_split
+
+    f = data_split.find_one({'key': key, 'competition': competition})
+
+    if f is not None:
+        return f['train'], f['test']
+
+    names = retrieve_benchmark_names(
+        db, competition, category=category, filter=filter
+    )
+
     name_train, name_test = train_test_split(
         names, test_size=test_ratio, random_state=42
     )
@@ -70,6 +79,48 @@ def train_test(key, competition, test_ratio=0.1,
     })
 
     return name_train, name_test
+
+
+@task_definition()
+def train_crossval(key, competition, cv=10,
+                   category=None, filter=None, env=None):
+
+    if env is None:
+        raise ValueError("train_test_split needs an execution context")
+
+    db = env.get_db()
+    data_split = db.data_split
+
+    f = data_split.find({'competition': competition,
+                         'crossval': key})
+
+    if f.count() == cv:
+        return [[a['key'], a['train'], a['test']] for a in f]
+
+    names = retrieve_benchmark_names(
+        db, competition, category=category, filter=filter
+    )
+
+    names = np.array(names)
+
+    kf = KFold(n_splits=cv, shuffle=True)
+
+    name_split = [
+        ["%s_%i" % (key, i), names[train].tolist(), names[test].tolist()]
+        for i, (train, test) in enumerate(kf.split(names))
+    ]
+
+    for id, names_train, names_test in name_split:
+        test_ratio = len(names_test) / (len(names_train) + len(names_test))
+        data_split.insert({
+            'key': id, 'competition': competition,
+            'category': category,
+            'test_ratio': test_ratio, 'train': names_train, 'test': names_test,
+            'train_size': len(names_train), 'test_size': len(names_test),
+            'crossval': key
+        })
+
+    return name_split
 
 
 @task_definition()
@@ -159,7 +210,7 @@ def filter_by_stat(competition, conditions, lesser=True, duplicate=True,
 
 
 def get_svcomp_train_test(key, competition, category=None, test_ratio=0.1,
-                          min_tool_coverage=0.8):
+                          min_tool_coverage=0.8, ret_key=False):
     split = train_test(key, competition, category=category,
                        test_ratio=test_ratio)
     cov = tool_coverage(
@@ -169,7 +220,30 @@ def get_svcomp_train_test(key, competition, category=None, test_ratio=0.1,
     cov_tools = covered_tools(
         key, competition, cov, min_coverage=min_tool_coverage
     )
+
+    if ret_key:
+        return cov_tools, split[0], split[1], key
+
     return cov_tools, split[0], split[1]
+
+
+def get_svcomp_cv(key, competition, category=None, cv=10,
+                  min_tool_coverage=0.8, filter=None, ret_key=False):
+    split = train_crossval(key, competition, category=category,
+                           cv=cv, filter=filter)
+    split_it = tsk.fork(split)
+    cov = tool_coverage(
+        competition, filter=split_it[1], category=category,
+        cache_key=split_it[0]
+    )
+    cov_tools = covered_tools(
+        split_it[0], competition, cov, min_coverage=min_tool_coverage
+    )
+
+    if ret_key:
+        return cov_tools, split_it[1], split_it[2], split_it[0]
+
+    return cov_tools, split_it[1], split_it[2]
 
 
 def index(x, y, n):
@@ -195,7 +269,7 @@ def index(x, y, n):
                + (y - (x+1)))
 
 
-def get_ranking(preference_vector, tool_order):
+def get_ranking(preference_vector, tool_order, allow_tie=True):
     count = {t: 0 for t in tool_order}
     n = len(tool_order)
 
@@ -218,9 +292,19 @@ def get_ranking(preference_vector, tool_order):
                 buckets[c] = [buckets[c]]
             buckets[c].append(t)
 
-    return [t for c, t in sorted(buckets.items(),
-                                 key=lambda X: X[0],
-                                 reverse=True)]
+    R = [t for c, t in sorted(buckets.items(),
+                              key=lambda X: X[0],
+                              reverse=True)]
+
+    if not allow_tie:
+        o = []
+        for r in R:
+            if isinstance(r, list):
+                o.extend(r)
+            else:
+                o.append(r)
+        R = o
+    return R
 
 
 def parse_label(status, time, ground_truth):
