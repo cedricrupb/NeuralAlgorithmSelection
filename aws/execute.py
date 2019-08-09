@@ -80,6 +80,10 @@ def process_loss(epoch, it, train_loss, val_loss, val_score, config,
 
     checkpoint_path = get_checkpoint_dir(config, checkpoint_path)
 
+    if val_loss is None:
+        val_loss = -1.0
+        val_score = -1.0
+
     save_stat(epoch, it, train_loss, val_loss, val_score,
               config, checkpoint_path)
 
@@ -152,9 +156,9 @@ def train_model(tools, config, dataset_path, checkpoint_path=None):
                                                     ):
         process_loss(epoch, it, train_loss, val_loss, val_score,
                      config, checkpoint_path)
-
-        save_checkpoint(epoch, it, train,
-                        checkpoint_path)
+        if val_loss is not None:
+            save_checkpoint(epoch, it, train,
+                            checkpoint_path)
 
         print("Epoch time: %f sec" % (time.time() - start_time))
         start_time = time.time()
