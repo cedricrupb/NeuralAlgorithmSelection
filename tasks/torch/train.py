@@ -180,13 +180,15 @@ class ModelOptimizer:
     def resume(self, model, optim, scheduler):
         self.model.load_state_dict(model)
         self.optim.load_state_dict(optim)
-        self.scheduler.load_state_dict(scheduler)
+        if self.scheduler is not None:
+            self.scheduler.load_state_dict(scheduler)
 
     def checkpoint(self):
+        scheduler = None if self.scheduler is None else self.scheduler.state_dict()
         return {
             'model': self.model.state_dict(),
             'optim': self.optim.state_dict(),
-            'scheduler': self.scheduler.state_dict()
+            'scheduler': scheduler
         }
 
     def train(self, X, y):
@@ -436,7 +438,7 @@ class ModelTrainer:
 
     def __init__(self, epoch, batch, optimizer,
                  dataset_op, shuffle=True, validate=None,
-                 norm=False, scheduler=None):
+                 norm=False, buffer=False, scheduler=None):
         self.epoch = epoch
         self.batch = batch
         self.optimizer = optimizer
@@ -447,9 +449,14 @@ class ModelTrainer:
         self.norm = norm
         self.total_batches = -1
         self.last_epoch = 0
+        self.buffer = buffer
 
     def _prepare(self, dataset_path):
         dataset = self.dataset_op(dataset_path)
+
+        if self.buffer:
+            dataset = proto_data.BufferedDataset(dataset)
+
         if self.validate is not None:
             dataset = self.validate.reduce_dataset(
                 dataset

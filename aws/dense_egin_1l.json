@@ -1,5 +1,5 @@
 {
-        "name": "dense_egin_1l"
+        "name": "dense_egin_1l",
         "model": {
             "global_condition": true,
             "layers": [
@@ -10,13 +10,14 @@
             "readout": [
                 {"type": "cga", "of": 2}
             ]
-        }
+        },
         "train": {
             "loss": "masked::HingeLoss",
             "epoch": 200,
             "batch": 32,
             "shuffle": 42,
             "augment": false,
+            "buffer": true,
             "optimizer": {"type": "torch::Adam", "lr": 0.01,
                           "weight_decay": 1e-4},
             "scheduler": {
@@ -26,7 +27,7 @@
             "validate": {
                 "checkpoint_step": 0,
                 "score": "spearmann",
-                "split": 0.1
+                "split": 0.03
             }
         },
         "test": {"type": "category", "scores": "spearmann"},

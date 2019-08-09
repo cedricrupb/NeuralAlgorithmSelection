@@ -230,12 +230,17 @@ if __name__ == '__main__':
                 ]
             },
             'dataset': {
-                'key': 'rank18_memory_%i' % i,
+                'key': 'rank18_overall_%i' % i,
                 'competition': '2018',
-                'category': 'memory',
+                'category': None,
                 'test_ratio': 0.2,
                 'min_tool_coverage': 0.8,
-                'ast_type': 'bag'
+                'ast_type': 'bag',
+                'filter': {
+                    'cfg_nodes': 10000,
+                    'cfg_edges': 10000,
+                    'pdg_edges': 10000
+                }
             },
             'train': {
                 'loss': 'masked::HingeLoss',

@@ -10,7 +10,7 @@ from tasks.torch.model_config import partial_to_model, micro_to_partial
 
 import time
 import os
-import glob
+from glob import glob
 
 import argparse
 import json
@@ -83,19 +83,19 @@ def process_loss(epoch, it, train_loss, val_loss, val_score, config,
     if val_loss is None:
         val_loss = -1.0
         val_score = -1.0
+    else:
+        print_stat(epoch, it, train_loss, val_loss, val_score)
 
     save_stat(epoch, it, train_loss, val_loss, val_score,
               config, checkpoint_path)
 
-    print(epoch, it, train_loss, val_loss, val_score)
 
-
-def save_checkpoint(epoch, it, name, train, checkpoint_path=None):
+def save_checkpoint(epoch, it, train, checkpoint_path=None):
 
     if checkpoint_path is None:
         return
 
-    path = os.path.join(checkpoint_path, 'epoch_%i.th' % (name, epoch))
+    path = os.path.join(checkpoint_path, 'epoch_%i.th' % (epoch))
 
     state = train.optimizer.checkpoint()
     state['epoch'] = epoch
@@ -112,14 +112,15 @@ def resume_or_start(config, model, checkpoint_path):
 
         paths = glob(os.path.join(checkpoint_path, 'epoch_*.th'))
 
-        paths = [(os.path.basename(p), p) for p in paths]
-        paths = [(int(p[0][6:-3]), p[1]) for p in paths]
-        paths = sorted(paths, key=lambda X: X[0], reverse=True)
+        if len(paths) > 0:
+            paths = [(os.path.basename(p), p) for p in paths]
+            paths = [(int(p[0][6:-3]), p[1]) for p in paths]
+            paths = sorted(paths, key=lambda X: X[0], reverse=True)
 
-        epoch, path = paths[0]
-        state = th.load(path)
+            epoch, path = paths[0]
+            state = th.load(path)
 
-        print("Resume training at epoch: %i" % state['epoch'])
+            print("Resume training at epoch: %i" % state['epoch'])
 
     train = build_training(config['train'], model, data_key='data')
 
@@ -137,7 +138,7 @@ def train_model(tools, config, dataset_path, checkpoint_path=None):
         model_config = micro_to_partial(model_config)
 
     if 'layers' in model_config:
-        model_config = partial_to_model(model_config, dataset_path)
+        model_config = partial_to_model(model_config, dataset_path, 'data')
 
     print("Compile model...")
     model = build_graph(model_config).compile()
@@ -154,14 +155,14 @@ def train_model(tools, config, dataset_path, checkpoint_path=None):
     for epoch, it, train_loss, val_loss, val_score in train.train_iter(
                                                         tools, dataset_path
                                                     ):
-        process_loss(epoch, it, train_loss, val_loss, val_score,
-                     config, checkpoint_path)
         if val_loss is not None:
+            process_loss(epoch, it, train_loss, val_loss, val_score,
+                         config, checkpoint_path)
             save_checkpoint(epoch, it, train,
                             checkpoint_path)
 
-        print("Epoch time: %f sec" % (time.time() - start_time))
-        start_time = time.time()
+            print("Epoch time: %f sec" % (time.time() - start_time))
+            start_time = time.time()
 
     print("Finished training...")
 
@@ -225,5 +226,5 @@ if __name__ == '__main__':
     )
 
     if 'test' in config:
-        test = test_model(config['tools'], config['test'],
+        test = test_model(config['tools'], config,
                           test_file, model, checkpoint)

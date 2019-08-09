@@ -203,10 +203,10 @@ def layered_to_model(config):
     return {'modules': modules, 'bind': bind}
 
 
-def get_info(dataset_path):
+def get_info(dataset_path, dataset_key='train'):
 
     dataset = proto_data.GraphDataset(
-        dataset_path, 'train', shuffle=False
+        dataset_path, dataset_key, shuffle=False
     )
     example = dataset[0]
 
@@ -253,7 +253,7 @@ def build_global(global_att, config, out):
     config['bind'] = bind
 
 
-def partial_to_model(config, dataset_path):
+def partial_to_model(config, dataset_path, dataset_key='train'):
 
     global_att = {}
 
@@ -265,7 +265,7 @@ def partial_to_model(config, dataset_path):
     if 'layers' in config:
         config = layered_to_model(config)
 
-    info = get_info(dataset_path)
+    info = get_info(dataset_path, dataset_key)
     out = info['y']
     del info['y']
 

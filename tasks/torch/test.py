@@ -85,7 +85,7 @@ class CategoryScorer:
             size += batch.num_graphs
             out = model(batch)
 
-            cat = batch.category.detach().numpy()
+            cat = batch.category.cpu().detach().numpy()
             cat = np.array([np.where(r == 1)[0][0] for r in cat])
 
             sc = self.scorer(out, batch.y, classes=len(tools))
@@ -126,14 +126,13 @@ def build_test(config, data_key='test'):
     del config['type']
 
     data_op = DatasetOp(data_key, False)
-    config['data_op'] = data_op
 
     if type == 'score':
         return TestScorer(
-            Scorer(**config)
+            Scorer(**config), data_op
         )
 
     if type == 'category':
         return CategoryScorer(
-            Scorer(**config)
+            Scorer(**config), data_op
         )
