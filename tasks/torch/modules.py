@@ -3,6 +3,7 @@ from torch import nn as thnn
 from torch_geometric import nn as pygnn
 
 from tasks.torch import models as tm
+from tasks.torch import modelx as mx
 
 from inspect import signature, Parameter, isfunction
 import copy
@@ -388,16 +389,54 @@ class GraphHandler(ModuleHandler):
         return "%s(%s) -> %d" % (name, ', '.join(assign), self._output_size)
 
 
+class GraphDenseHandler(GraphHandler):
+
+    def __init__(self, name, module, config):
+        super().__init__(name, module, config, False)
+        self._tmp_output = self._output_size
+
+    def bind_input(self, key, size):
+        if key in self._node:
+            for a in alias.get_alias('in_channels', of=self._config.keys()):
+                self._config[a] = size
+            self._output_size = self._tmp_output + size
+        else:
+            super().bind_input(key, size)
+
+
 def create_handler(type, config):
 
     if type == 'tasks::cga':
         return GraphHandler(type, tm.ConditionalGlobalAttention, config,
                             idempotent=True)
 
+    if type == 'mx::cga':
+        return GraphHandler(type, mx.ConditionalGlobalAttention, config)
+
     if type.startswith('tasks::'):
         type_ = type[7:]
         if type_ in dir(tm):
             module = getattr(tm, type_)
+
+            if isfunction(module):
+                return GraphFunctionHandler(type, module, config)
+
+            return GraphHandler(type, module, config)
+
+    if type.startswith('dense::'):
+        type_ = type[7:]
+        if type_ in dir(mx):
+            module = getattr(mx, type_)
+
+            if isfunction(module):
+                raise ValueError("No dense function: %s" % type_)
+
+            return GraphDenseHandler(type, module, config)
+
+    if type.startswith('mx::'):
+        type_ = type[4:]
+        if type_ in dir(mx):
+            module = getattr(mx, type_)
 
             if isfunction(module):
                 return GraphFunctionHandler(type, module, config)

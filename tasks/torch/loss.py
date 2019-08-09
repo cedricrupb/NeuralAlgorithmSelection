@@ -94,6 +94,23 @@ class HingeLoss(th.nn.Module):
         return reduce(L, self.reduction)
 
 
+class HammingLoss(th.nn.Module):
+
+    def __init__(self, reduction='mean'):
+        super().__init__()
+        self.reduction = reduction
+
+    def forward(self, p, y):
+
+        y = 2*y - 1
+        p = th.tanh(p)
+
+        sum = (p * y)
+
+        L = 0.25*((sum - 1)**2)
+        return reduce(L, self.reduction)
+
+
 def select_loss(loss_type):
 
     if loss_type == 'rank_bce':

@@ -4,14 +4,17 @@ import numpy as np
 from tasks.torch.train import Scorer, DatasetOp
 from torch_geometric.data import DataLoader
 
+import time
+
 
 class TestScorer:
 
-    def __init__(self, scorer):
+    def __init__(self, scorer, data_op):
         self.scorer = scorer
-        self.data_op = DatasetOp('test', False)
+        self.data_op = data_op
 
     def __call__(self, tools, model, dataset_path):
+        start_time = time.time()
         model.eval()
 
         loader = self.data_op(dataset_path)
@@ -24,8 +27,11 @@ class TestScorer:
 
         test_scoring = {}
 
+        size = 0
+
         for batch in loader:
             batch = batch.to(device)
+            size += batch.num_graphs
             out = model(batch)
 
             sc = self.scorer(out, batch.y, classes=len(tools))
@@ -43,16 +49,20 @@ class TestScorer:
                 'std': ts.std().item()
                 }
 
+        test_scoring['test_time'] = (time.time() - start_time)
+        test_scoring['num_graphs'] = size
+
         return test_scoring
 
 
 class CategoryScorer:
 
-    def __init__(self, scorer):
+    def __init__(self, scorer, data_op):
         self.scorer = scorer
-        self.data_op = DatasetOp('test', False)
+        self.data_op = data_op
 
     def __call__(self, tools, model, dataset_path):
+        start_time = time.time()
         model.eval()
 
         loader = self.data_op(dataset_path)
@@ -68,8 +78,11 @@ class CategoryScorer:
 
         test_scoring = {}
 
+        size = 0
+
         for batch in loader:
             batch = batch.to(device)
+            size += batch.num_graphs
             out = model(batch)
 
             cat = batch.category.detach().numpy()
@@ -97,18 +110,23 @@ class CategoryScorer:
                 'mean': ts.mean().item(),
                 'std': ts.std().item()
                 }
-        print(test_scoring)
+
+        test_scoring['test_time'] = (time.time() - start_time)
+        test_scoring['num_graphs'] = size
 
         return test_scoring
 
 
-def build_test(config):
+def build_test(config, data_key='test'):
 
     if not isinstance(config, dict):
         config = {'type': 'score', 'scores': config}
 
     type = config['type']
     del config['type']
+
+    data_op = DatasetOp(data_key, False)
+    config['data_op'] = data_op
 
     if type == 'score':
         return TestScorer(

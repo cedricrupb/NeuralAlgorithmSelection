@@ -1,0 +1,46 @@
+digraph CFA {
+1 [shape="circle" label="N1\n6"]
+16 [shape="circle" label="N16\n5"]
+17 [shape="circle" label="N17\n4"]
+18 [shape="circle" label="N18\n3"]
+2 [shape="circle" label="N2\n2"]
+6 [shape="circle" label="N6\n8"]
+7 [shape="diamond" label="N7\n7"]
+8 [shape="circle" label="N8\n6"]
+11 [shape="circle" label="N11\n5"]
+12 [shape="circle" label="N12\n4"]
+13 [shape="circle" label="N13\n3"]
+14 [shape="circle" label="N14\n2"]
+5 [shape="circle" label="N5\n0"]
+3 [shape="circle" label="N3\n1"]
+0 [shape="circle" label="N0\n0"]
+9 [shape="circle" label="N9\n1"]
+node [shape="circle"]
+subgraph cluster_fib {
+label="fib()"
+6 -> 7 [label="Function start dummy edge"]
+7 -> 9 [label="[i <= 1]"]
+7 -> 8 [label="[!(i <= 1)]"]
+8 -> 11 [label="int __CPAchecker_TMP_0;"]
+11 -> 12 [label="__CPAchecker_TMP_0 = fib(i - 1);" style="dotted" arrowhead="empty"]
+11 -> 12 [label="__CPAchecker_TMP_0 = fib(i - 1);"]
+12 -> 13 [label="int __CPAchecker_TMP_1;"]
+13 -> 14 [label="__CPAchecker_TMP_1 = fib(i - 2);" style="dotted" arrowhead="empty"]
+13 -> 14 [label="__CPAchecker_TMP_1 = fib(i - 2);"]
+14 -> 5 [label="return __CPAchecker_TMP_0 + __CPAchecker_TMP_1;"]
+9 -> 5 [label="return 1;"]}
+subgraph cluster_main {
+label="main()"
+1 -> 16 [label="INIT GLOBAL VARS"]
+16 -> 17 [label="int main();"]
+17 -> 18 [label="int fib(int i);"]
+18 -> 2 [label="Function start dummy edge"]
+2 -> 3 [label="fib(5);" style="dotted" arrowhead="empty"]
+2 -> 3 [label="fib(5);"]
+3 -> 0 [label="return 0;"]}
+2 -> 6 [label="fib(5)"]
+11 -> 6 [label="fib(i - 1)"]
+13 -> 6 [label="fib(i - 2)"]
+5 -> 12 [label="Return edge from fib to fib: __CPAchecker_TMP_0 = fib(i - 1);"]
+5 -> 14 [label="Return edge from fib to fib: __CPAchecker_TMP_1 = fib(i - 2);"]
+5 -> 3 [label="Return edge from fib to main: fib(5);"]}

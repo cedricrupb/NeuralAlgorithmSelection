@@ -27,3 +27,4 @@ torch-cluster==1.4.2
 torch-geometric==1.2.1
 torch-scatter==1.1.0
 torch-sparse==0.2.4
+visdom==0.1.8.8
