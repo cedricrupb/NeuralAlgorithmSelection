@@ -101,7 +101,8 @@ def layer_module(config):
         return cfg, ['x', 'edge_index']
 
     if type == 'gcn':
-        cfg = {'type': 'geo::GCNConv', 'node_dim': config['node_dim']}
+        cfg = {'type': 'geo::GCNConv', 'node_dim': config['node_dim'],
+               'cached': True}
         return cfg, ['x', 'edge_index']
 
     if type == 'sage':

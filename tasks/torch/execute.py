@@ -220,6 +220,7 @@ if __name__ == '__main__':
         config = {
             'name': 'test_again_memory_%i' % i,
             'model': {
+                'global_condition': True,
                 'layers': [
                     {'type': 'ex_entry', 'node_dim': 64},
                     {'type': 'dense_egin', 'node_dim': 16, 'hidden': 32},

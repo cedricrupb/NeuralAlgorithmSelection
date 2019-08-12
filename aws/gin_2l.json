@@ -1,0 +1,45 @@
+{
+        "name": "gin_2l",
+        "model": {
+            "global_condition": true,
+            "layers": [
+                {"type": "embed", "node_dim": 64},
+                {"type": "gin",
+                             "node_dim": 64,
+                             "hidden": 64,
+                             "norm": true
+                             },
+               {"type": "gin",
+                            "node_dim": 64,
+                            "hidden": 64,
+                            "norm": true
+                            }
+            ],
+            "readout": [
+                {"type": "geo::global_add_pool"},
+                {"type": "geo::global_add_pool"},
+                {"type": "geo::global_add_pool"}
+            ]
+        },
+        "train": {
+            "loss": "masked::HingeLoss",
+            "epoch": 200,
+            "batch": 32,
+            "shuffle": 42,
+            "augment": false,
+            "buffer": true,
+            "optimizer": {"type": "torch::Adam", "lr": 0.01,
+                          "weight_decay": 1e-4},
+            "scheduler": {
+                "type": "torch::StepLR", "mode": "epoch",
+                "step_size": 50, "gamma": 0.5
+            },
+            "validate": {
+                "checkpoint_step": 0,
+                "score": "spearmann",
+                "split": 0.03
+            }
+        },
+        "test": {"type": "category", "scores": "spearmann"},
+        "tools": ["ukojak","esbmc-incr","depthk","cbmc","esbmc-kind","utaipan","2ls","cpa-seq","symbiotic","uautomizer"]
+    }

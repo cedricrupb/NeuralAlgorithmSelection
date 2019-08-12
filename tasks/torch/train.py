@@ -409,7 +409,14 @@ class DatasetOp:
         self.shuffle = shuffle
         self.augment = augment
 
-    def __call__(self, dataset_path):
+    def __call__(self, dataset_path, buffer=False):
+        if buffer:
+            return proto_data.InMemoryGraphDataset(
+                dataset_path, self.key, shuffle=self.shuffle,
+                transform=dataset_transform(
+                    self.augment
+                )
+            )
         return proto_data.GraphDataset(
             dataset_path, self.key, shuffle=self.shuffle,
             transform=dataset_transform(
@@ -452,10 +459,7 @@ class ModelTrainer:
         self.buffer = buffer
 
     def _prepare(self, dataset_path):
-        dataset = self.dataset_op(dataset_path)
-
-        if self.buffer:
-            dataset = proto_data.BufferedDataset(dataset)
+        dataset = self.dataset_op(dataset_path, self.buffer)
 
         if self.validate is not None:
             dataset = self.validate.reduce_dataset(

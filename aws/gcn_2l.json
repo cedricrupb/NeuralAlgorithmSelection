@@ -1,14 +1,22 @@
 {
-        "name": "dense_egin_1l",
+        "name": "gcn_2l",
         "model": {
             "global_condition": true,
             "layers": [
-                {"type": "ex_entry", "node_dim": 64},
-                {"type": "dense_egin", "node_dim": 16, "hidden": 32},
-                {"type": "dense_egin", "node_dim": 16, "hidden": 32}
+                {"type": "embed", "node_dim": 64},
+                {"type": "gcn",
+                             "node_dim": 64,
+                             "norm": true
+                             },
+               {"type": "gcn",
+                            "node_dim": 64,
+                            "norm": true
+                            }
             ],
             "readout": [
-                {"type": "cga", "of": 2}
+                {"type": "geo::global_add_pool"},
+                {"type": "geo::global_add_pool"},
+                {"type": "geo::global_add_pool"}
             ]
         },
         "train": {

@@ -1,0 +1,27 @@
+2019-08-12 12:06:27:833	INFO	CPAchecker.run	CPAchecker 1.7-svn (Java HotSpot(TM) 64-Bit Server VM 1.8.0_101) started
+
+2019-08-12 12:06:29:593	INFO	CoreComponentsFactory.createAlgorithm	Using Neural Graph generation algorithm
+
+2019-08-12 12:06:29:609	WARNING	CPAchecker.printConfigurationWarnings	The following configuration options were specified but are not used:
+ termination.violation.witness
+ cpa.arg.compressWitness
+ counterexample.export.graphml
+ counterexample.export.compressWitness
+ cpa.arg.proofWitness
+ cfa.functionCalls.recursionDepth 
+
+
+2019-08-12 12:06:29:609	INFO	CPAchecker.runAlgorithm	Starting analysis ...
+
+2019-08-12 12:06:29:613	INFO	NeuralGraphGenAlgorithm.run	Start CFA processing....
+
+2019-08-12 12:06:29:692	INFO	NeuralGraphGenAlgorithm.run	Add data dependencies
+
+2019-08-12 12:06:29:698	INFO	NeuralGraphGenAlgorithm.run	Add control dependencies
+
+2019-08-12 12:06:29:706	INFO	NeuralGraphGenAlgorithm.run	Write graph to ./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/graph.json
+
+2019-08-12 12:06:29:737	INFO	CPAchecker.runAlgorithm	Stopping analysis ...
+
+2019-08-12 12:06:29:748	WARNING	CPAchecker.analyzeResult	Analysis not completed: there are still states to be processed.
+

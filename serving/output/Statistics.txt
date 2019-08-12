@@ -1,0 +1,74 @@
+
+AutomatonAnalysis (SVCOMP) statistics
+-------------------------------------
+Number of states:                                  1
+Total time for successor computation:                  0.000s
+Automaton transfers with branching:                0
+Automaton transfer successors:                     0.00 (sum: 0, count: 0, min: 0, max: 0) []
+
+Code Coverage
+-----------------------------
+  Function coverage:      0.500
+  Visited lines:          0
+  Total lines:            10
+  Line coverage:          0.000
+  Visited conditions:     0
+  Total conditions:       4
+  Condition coverage:     0.000
+
+CPAchecker general statistics
+-----------------------------
+Number of program locations:                       22
+Number of CFA edges (per node):                          28 (count: 22, min: 0, max: 3, avg: 1.27)
+Number of relevant variables:                      2
+Number of functions:                               2
+Number of loops (and loop nodes):                         1 (sum: 5, min: 5, max: 5, avg: 5.00)
+Size of reached set:             1
+  Number of reached locations:   1 (5%)
+    Avg states per location:     1
+    Max states per location:     1 (at node N1)
+  Number of reached functions:   1 (50%)
+  Number of partitions:          1
+    Avg size of partitions:      1
+    Max size of partitions:      1
+  Number of target states:       0
+  Size of final wait list:       1
+
+Time for analysis setup:          1.748s
+  Time for loading CPAs:          0.495s
+  Time for loading parser:        0.373s
+  Time for CFA construction:      0.814s
+    Time for parsing file(s):     0.386s
+    Time for AST to CFA:          0.199s
+    Time for CFA sanity check:    0.007s
+    Time for post-processing:     0.162s
+    Time for CFA export:          0.937s
+      Time for function pointers resolving:            0.005s
+        Function calls via function pointers:             0 (count: 1, min: 0, max: 0, avg: 0.00)
+        Instrumented function pointer calls:              0 (count: 1, min: 0, max: 0, avg: 0.00)
+        Function calls with function pointer arguments:        0 (count: 1, min: 0, max: 0, avg: 0.00)
+        Instrumented function pointer arguments:          0 (count: 1, min: 0, max: 0, avg: 0.00)
+      Time for var class.:                             0.098s
+        Time for collecting variables:                 0.036s
+        Time for solving dependencies:                 0.001s
+        Time for building hierarchy:                   0.000s
+        Time for building classification:              0.058s
+        Time for exporting data:                       0.003s
+Time for Analysis:                0.126s
+CPU time for analysis:            0.169s
+Time for analyzing result:        0.010s
+Total time for CPAchecker:        1.883s
+Total CPU time for CPAchecker:    3.578s
+Time for statistics:              0.183s
+
+Time for Garbage Collector:       0.088s (in 5 runs)
+Garbage Collector(s) used:    PS MarkSweep, PS Scavenge
+Used heap memory:                 45MB (    43 MiB) max;     26MB (    25 MiB) avg;     54MB (    52 MiB) peak
+Used non-heap memory:             31MB (    29 MiB) max;     22MB (    21 MiB) avg;     32MB (    30 MiB) peak
+Used in PS Old Gen pool:          15MB (    14 MiB) max;      7MB (     6 MiB) avg;     15MB (    14 MiB) peak
+Allocated heap memory:           145MB (   138 MiB) max;    132MB (   126 MiB) avg
+Allocated non-heap memory:        32MB (    30 MiB) max;     23MB (    22 MiB) avg
+Total process virtual memory:  17020MB ( 16232 MiB) max;  16980MB ( 16193 MiB) avg
+
+Verification result: UNKNOWN, incomplete analysis.
+More details about the verification run can be found in the directory "./output".

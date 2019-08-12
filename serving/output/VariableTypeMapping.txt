@@ -1,0 +1,7 @@
+main::res	4
+fib::__retval__	4
+main::inp	4
+fib::left	4
+main::__retval__	7
+fib::n	4
+fib::right	4

@@ -1,0 +1,35 @@
+{
+        "name": "dense_egin_2l",
+        "model": {
+            "global_condition": true,
+            "layers": [
+                {"type": "ex_entry", "node_dim": 64},
+                {"type": "dense_egin", "node_dim": 16, "hidden": 32},
+                {"type": "dense_egin", "node_dim": 16, "hidden": 32}
+            ],
+            "readout": [
+                {"type": "cga", "of": 2}
+            ]
+        },
+        "train": {
+            "loss": "masked::HingeLoss",
+            "epoch": 200,
+            "batch": 32,
+            "shuffle": 42,
+            "augment": false,
+            "buffer": true,
+            "optimizer": {"type": "torch::Adam", "lr": 0.01,
+                          "weight_decay": 1e-4},
+            "scheduler": {
+                "type": "torch::StepLR", "mode": "epoch",
+                "step_size": 50, "gamma": 0.5
+            },
+            "validate": {
+                "checkpoint_step": 0,
+                "score": "spearmann",
+                "split": 0.03
+            }
+        },
+        "test": {"type": "category", "scores": "spearmann"},
+        "tools": ["ukojak","esbmc-incr","depthk","cbmc","esbmc-kind","utaipan","2ls","cpa-seq","symbiotic","uautomizer"]
+    }
