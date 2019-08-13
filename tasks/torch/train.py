@@ -207,6 +207,18 @@ class ModelOptimizer:
 
     def to(self, device):
         self.model = self.model.to(device)
+        self.loss = self.loss.to(device)
+
+        for state in self.optim.state.values():
+            for k, v in state.items():
+                if isinstance(v, th.Tensor):
+                    state[k] = v.to(device)
+
+        if self.scheduler is not None:
+            for state in self.scheduler.state.values():
+                for k, v in state.items():
+                    if isinstance(v, th.Tensor):
+                        state[k] = v.to(device)
 
     def __str__(self):
         return to_str(
@@ -411,7 +423,7 @@ class DatasetOp:
 
     def __call__(self, dataset_path, buffer=False):
         if buffer:
-            return proto_data.InMemoryGraphDataset(
+            return proto_data.InMemGraphDataset(
                 dataset_path, self.key, shuffle=self.shuffle,
                 transform=dataset_transform(
                     self.augment
@@ -467,7 +479,7 @@ class ModelTrainer:
             )
         return DataLoader(
             dataset, batch_size=self.batch,
-            shuffle=self.shuffle, num_workers=6
+            shuffle=self.shuffle, num_workers=8
         )
 
     def _norm(self, loader, device):

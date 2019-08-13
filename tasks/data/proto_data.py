@@ -5,8 +5,8 @@ from tasks.data import graph_data_pb2 as gd
 from tasks.utils import train_utils
 
 import torch as th
-from torch.utils.data import Dataset, InMemoryDataset
-from torch_geometric.data import Data
+from torch.utils.data import Dataset
+from torch_geometric.data import Data, InMemoryDataset
 
 import os
 import lmdb
@@ -524,9 +524,9 @@ class GraphFlatDataset(LMDBDataset):
 class InMemGraphDataset(InMemoryDataset):
 
     def __init__(self, root, base_db, shuffle=False, transform=None):
-        super().__init__(root, transform=transform, pre_transform=bin_to_data)
         self.base_db = base_db
         self.shuffle = shuffle
+        super().__init__(root, transform=transform, pre_transform=bin_to_data)
         self.data, self.slices = th.load(self.processed_paths[0])
 
     def __name__(self):

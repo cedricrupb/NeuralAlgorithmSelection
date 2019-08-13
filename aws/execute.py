@@ -14,6 +14,8 @@ from glob import glob
 
 import argparse
 import json
+from zipfile import ZipFile
+import shutil
 
 
 def build_model_io(base_dir):
@@ -132,7 +134,26 @@ def resume_or_start(config, model, checkpoint_path):
     return train
 
 
+def prepare_dataset(path):
+
+    if not path.endswith('.zip'):
+        return path, False
+
+    out_path = path[:-4]
+
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
+
+    with ZipFile(path, 'r') as zipObj:
+        zipObj.extractall(out_path)
+
+    return out_path, True
+
+
 def train_model(tools, config, dataset_path, checkpoint_path=None):
+
+    print('Prepare dataset...')
+    dataset_path, cleanup = prepare_dataset(dataset_path)
 
     model_config = config['model']
 
@@ -168,10 +189,17 @@ def train_model(tools, config, dataset_path, checkpoint_path=None):
 
     print("Finished training...")
 
+    if cleanup:
+        print("Cleanup...")
+        shutil.rmtree(dataset_path)
+
     return model
 
 
 def test_model(tools, config, dataset_path, model, checkpoint_path=None):
+
+    print('Prepare test dataset...')
+    dataset_path, cleanup = prepare_dataset(dataset_path)
 
     print("Start test...")
     test = build_test(config['test'], data_key='data')
@@ -195,6 +223,10 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
         path = os.path.join(checkpoint, 'test.json')
         with open(path, "w") as o:
             json.dump(test_res, o, indent=4)
+
+    if cleanup:
+        print("Cleanup...")
+        shutil.rmtree(dataset_path)
 
     return test_res
 

@@ -220,32 +220,25 @@ if __name__ == '__main__':
         config = {
             'name': 'test_again_memory_%i' % i,
             'model': {
-                'global_condition': True,
-                'layers': [
-                    {'type': 'ex_entry', 'node_dim': 64},
-                    {'type': 'dense_egin', 'node_dim': 16, 'hidden': 32},
-                    {'type': 'dense_egin', 'node_dim': 16, 'hidden': 32}
-                ],
-                'readout': [
-                    {'type': 'cga', 'of': 2}
-                ]
+                "type": "dense_gin",
+                "embed_size": 64,
+                "growth": 8,
+                "layers": 2,
+                "out": 64,
+                "global_condition": True,
+                "global_norm": True
             },
             'dataset': {
-                'key': 'rank18_overall_%i' % i,
+                'key': 'rank18_memory_%i' % i,
                 'competition': '2018',
                 'category': None,
                 'test_ratio': 0.2,
                 'min_tool_coverage': 0.8,
-                'ast_type': 'bag',
-                'filter': {
-                    'cfg_nodes': 10000,
-                    'cfg_edges': 10000,
-                    'pdg_edges': 10000
-                }
+                'ast_type': 'bag'
             },
             'train': {
                 'loss': 'masked::HingeLoss',
-                'epoch': 200,
+                'epoch': 40,
                 'batch': 32,
                 'shuffle': 42,
                 'augment': False,
@@ -253,7 +246,7 @@ if __name__ == '__main__':
                               'weight_decay': 1e-4},
                 'scheduler': {
                     'type': 'torch::StepLR', 'mode': 'epoch',
-                    'step_size': 50, 'gamma': 0.5
+                    'step_size': 20, 'gamma': 0.1
                 },
                 'validate': {
                     'checkpoint_step': 0,
