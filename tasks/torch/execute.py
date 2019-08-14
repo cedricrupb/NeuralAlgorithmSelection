@@ -218,27 +218,27 @@ if __name__ == '__main__':
     for i in range(1):
 
         config = {
-            'name': 'test_again_memory_%i' % i,
+            'name': 'dense12_200_memory_%i' % i,
             'model': {
                 "type": "dense_gin",
-                "embed_size": 64,
-                "growth": 8,
+                "embed_size": 32,
+                "growth": 12,
                 "layers": 2,
-                "out": 64,
+                "out": 96,
                 "global_condition": True,
                 "global_norm": True
             },
             'dataset': {
                 'key': 'rank18_memory_%i' % i,
                 'competition': '2018',
-                'category': None,
+                'category': 'memory',
                 'test_ratio': 0.2,
                 'min_tool_coverage': 0.8,
                 'ast_type': 'bag'
             },
             'train': {
                 'loss': 'masked::HingeLoss',
-                'epoch': 40,
+                'epoch': 200,
                 'batch': 32,
                 'shuffle': 42,
                 'augment': False,
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                               'weight_decay': 1e-4},
                 'scheduler': {
                     'type': 'torch::StepLR', 'mode': 'epoch',
-                    'step_size': 20, 'gamma': 0.1
+                    'step_size': 50, 'gamma': 0.5
                 },
                 'validate': {
                     'checkpoint_step': 0,

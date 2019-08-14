@@ -314,22 +314,35 @@ def micro_to_partial(config):
         }
 
     if type == 'dense_gin':
+        edge = True
+        if 'edge' in config:
+            edge = config['edge']
         Ls = [{
                 'type': 'mx::DenseEdgeGIN',
                 'node_dim': config['out'],
                 'growth': config['growth'],
                 "embed_size": config['embed_size'],
                 "layers": config['layers'],
+                'edge': edge
                }]
-        aggr = 'mean'
-        if 'cga_aggr' in config:
-            aggr = config['cga_aggr']
-        readout = [
-            {
-                'type': 'cga',
-                'aggr': aggr
-            }
-        ]
+        cga = True
+        if 'cga' in config:
+            cga = config['cga']
+
+        if cga:
+            aggr = 'mean'
+            if 'cga_aggr' in config:
+                aggr = config['cga_aggr']
+            readout = [
+                {
+                    'type': 'cga',
+                    'aggr': aggr
+                }
+            ]
+        else:
+            readout = [
+                'add'
+            ]
         cfg = {
             'layers': Ls,
             'readout': readout

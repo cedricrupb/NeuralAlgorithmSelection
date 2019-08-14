@@ -231,21 +231,7 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
     return test_res
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('config')
-    parser.add_argument('train_file')
-    parser.add_argument('test_file')
-    parser.add_argument("--checkpoint", '-c')
-
-    args = parser.parse_args()
-
-    config = args.config
-    train_file = args.train_file
-    test_file = args.test_file
-    checkpoint = args.checkpoint
-
+def run(config, train_file, test_file, checkpoint=None):
     if not os.path.exists(config):
         print("Unknown config: %s" % config)
         exit()
@@ -260,5 +246,22 @@ if __name__ == '__main__':
     )
 
     if 'test' in config:
-        test = test_model(config['tools'], config,
-                          test_file, model, checkpoint)
+        test_model(config['tools'], config,
+                   test_file, model, checkpoint)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('config')
+    parser.add_argument('train_file')
+    parser.add_argument('test_file')
+    parser.add_argument("--checkpoint", '-c')
+
+    args = parser.parse_args()
+
+    config = args.config
+    train_file = args.train_file
+    test_file = args.test_file
+    checkpoint = args.checkpoint
+    run(config, train_file, test_file, checkpoint)

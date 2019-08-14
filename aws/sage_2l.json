@@ -3,20 +3,20 @@
         "model": {
             "global_condition": true,
             "layers": [
-                {"type": "embed", "node_dim": 64},
+                {"type": "embed", "node_dim": 32},
                 {"type": "sage",
-                             "node_dim": 64,
+                             "node_dim": 32,
                              "norm": true
                              },
                {"type": "sage",
-                            "node_dim": 64,
+                            "node_dim": 32,
                             "norm": true
                             }
             ],
             "readout": [
-                {"type": "geo::global_add_pool"},
-                {"type": "geo::global_add_pool"},
-                {"type": "geo::global_add_pool"}
+                {"type": "add"},
+                {"type": "add"},
+                {"type": "add"}
             ]
         },
         "train": {

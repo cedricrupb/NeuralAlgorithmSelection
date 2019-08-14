@@ -6,6 +6,7 @@
             "growth": 8,
             "layers": 2,
             "out": 32,
+            "edge": false,
             "global_condition": true
         },
         "train": {
