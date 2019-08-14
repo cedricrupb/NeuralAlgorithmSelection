@@ -101,8 +101,7 @@ def layer_module(config):
         return cfg, ['x', 'edge_index']
 
     if type == 'gcn':
-        cfg = {'type': 'geo::GCNConv', 'node_dim': config['node_dim'],
-               'cached': True}
+        cfg = {'type': 'geo::GCNConv', 'node_dim': config['node_dim']}
         return cfg, ['x', 'edge_index']
 
     if type == 'sage':
@@ -111,7 +110,7 @@ def layer_module(config):
 
     if type == 'gat':
         cfg = {'type': 'geo::GATConv', 'node_dim': config['node_dim'],
-               'heads': 8, 'dropout': 0.8}
+               'dropout': 0.8}
         return cfg, ['x', 'edge_index']
 
     if type == 'res_gcn':

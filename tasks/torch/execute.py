@@ -220,13 +220,21 @@ if __name__ == '__main__':
         config = {
             'name': 'dense12_200_memory_%i' % i,
             'model': {
-                "type": "dense_gin",
-                "embed_size": 32,
-                "growth": 32,
-                "layers": 2,
-                "out": 96,
                 "global_condition": True,
-                "global_norm": True
+                "layers": [
+                    {"type": "embed", "node_dim": 32},
+                    {"type": "gat",
+                                 "node_dim": 32
+                                 },
+                   {"type": "gat",
+                                "node_dim": 32
+                                }
+                ],
+                "readout": [
+                    {"type": "add"},
+                    {"type": "add"},
+                    {"type": "add"}
+                ]
             },
             'dataset': {
                 'key': 'rank18_memory_%i' % i,

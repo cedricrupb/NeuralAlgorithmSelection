@@ -7,7 +7,8 @@
             "layers": 2,
             "out": 96,
             "edge": false,
-            "global_condition": true
+            "global_condition": true,
+            "global_norm": true
         },
         "train": {
             "loss": "masked::HingeLoss",

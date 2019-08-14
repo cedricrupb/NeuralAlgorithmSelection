@@ -135,6 +135,9 @@ class ModuleDescription:
 
         warn_unused(name, config, options)
 
+        if 'kwargs' in kwargs:
+            del kwargs['kwargs']
+
         return self.get_module()(**kwargs)
 
     def __str__(self):

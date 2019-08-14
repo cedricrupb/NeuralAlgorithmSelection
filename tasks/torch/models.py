@@ -266,7 +266,7 @@ def prepare_gin(nn_cfg, in_channel, out_channel):
 
     size = len(hidden)
 
-    dropout = [0.1]*len(hidden)
+    dropout = [0.0]*len(hidden)
     if 'dropout' in nn_cfg:
         dr = nn_cfg['dropout']
         if not isinstance(dr, list):
