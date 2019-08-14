@@ -1,5 +1,5 @@
 {
-        "name": "dense_egin_2l",
+        "name": "dense_gin_2l",
         "model": {
             "type": "dense_gin",
             "embed_size": 32,
