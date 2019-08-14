@@ -189,10 +189,14 @@ class DenseEdgeGIN(th.nn.Module):
     def __init__(self, in_channels, edge_channels, out_channels,
                  embed_size, growth, layers=2, edge=True):
         super().__init__()
+        mid = int((in_channels + embed_size)/2)
         self.in_gate = th.nn.Sequential(
             th.nn.BatchNorm1d(in_channels),
             th.nn.ReLU(),
-            th.nn.Linear(in_channels, embed_size)
+            th.nn.Linear(in_channels, mid),
+            th.nn.BatchNorm1d(mid),
+            th.nn.ReLU(),
+            th.nn.Linear(mid, embed_size)
         )
 
         size = embed_size
@@ -212,10 +216,15 @@ class DenseEdgeGIN(th.nn.Module):
 
         self.dense = th.nn.ModuleList(layer)
 
+        mid = int((size + out_channels)/2)
+
         self.out_gate = th.nn.Sequential(
             th.nn.BatchNorm1d(size),
             th.nn.ReLU(),
-            th.nn.Linear(size, out_channels),
+            th.nn.Linear(size, mid),
+            th.nn.BatchNorm1d(mid),
+            th.nn.ReLU(),
+            th.nn.Linear(mid, out_channels),
             th.nn.BatchNorm1d(out_channels),
             th.nn.ReLU()
         )
