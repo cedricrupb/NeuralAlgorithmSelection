@@ -222,7 +222,7 @@ if __name__ == '__main__':
             'model': {
                 "type": "dense_gin",
                 "embed_size": 32,
-                "growth": 16,
+                "growth": 32,
                 "layers": 2,
                 "out": 96,
                 "global_condition": True,

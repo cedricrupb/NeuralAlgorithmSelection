@@ -233,12 +233,6 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
 
 
 def run(config, train_file, test_file, checkpoint=None):
-    if not os.path.exists(config):
-        print("Unknown config: %s" % config)
-        exit()
-
-    with open(config, "r") as i:
-        config = json.load(i)
 
     model = train_model(
         config['tools'],
@@ -265,4 +259,12 @@ if __name__ == '__main__':
     train_file = args.train_file
     test_file = args.test_file
     checkpoint = args.checkpoint
+
+    if not os.path.exists(config):
+        print("Unknown config: %s" % config)
+        exit()
+
+    with open(config, "r") as i:
+        config = json.load(i)
+
     run(config, train_file, test_file, checkpoint)

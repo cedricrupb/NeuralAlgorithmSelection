@@ -44,6 +44,18 @@ def find_todos(checkpoint):
                 yield (t, test[i], m)
 
 
+def adjust_config(config, train_path):
+    with open("case_config.json", "r") as c:
+        cases = json.load(c)
+
+    for k, V in cases.items():
+        if k in train_path:
+            print("Load %s train config..." % k)
+            config['train'] = V
+            break
+    return config
+
+
 def run_bench(checkpoint, dataset):
 
     path_pattern = os.path.join(dataset, "%s.zip")
@@ -68,8 +80,13 @@ def run_bench(checkpoint, dataset):
             print("Cannot load model. %s doesn't exist." % model_path)
             continue
 
+        with open(model_path, "r") as i:
+            config = json.load(i)
+
+        config = adjust_config(config, train_path)
+
         exc.run(
-            model_path, train_path, test_path,
+            config, train_path, test_path,
             checkpoint=os.path.join(checkpoint, train)
         )
 

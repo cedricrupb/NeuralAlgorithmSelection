@@ -131,10 +131,10 @@ class DenseEdgeLayer(MessagePassing):
         self.nn = th.nn.Sequential(
             th.nn.BatchNorm1d(in_size),
             th.nn.ReLU(),
-            th.nn.Linear(in_size, 2*growth),
-            th.nn.BatchNorm1d(2*growth),
+            th.nn.Linear(in_size, 4*growth),
+            th.nn.BatchNorm1d(4*growth),
             th.nn.ReLU(),
-            th.nn.Linear(2*growth, growth),
+            th.nn.Linear(4*growth, growth),
             th.nn.BatchNorm1d(growth),
             th.nn.ReLU()
         )
@@ -163,10 +163,10 @@ class DenseNodeLayer(MessagePassing):
         self.nn = th.nn.Sequential(
             th.nn.BatchNorm1d(in_size),
             th.nn.ReLU(),
-            th.nn.Linear(in_size, 2*growth),
-            th.nn.BatchNorm1d(2*growth),
+            th.nn.Linear(in_size, 4*growth),
+            th.nn.BatchNorm1d(4*growth),
             th.nn.ReLU(),
-            th.nn.Linear(2*growth, growth),
+            th.nn.Linear(4*growth, growth),
             th.nn.BatchNorm1d(growth),
             th.nn.ReLU()
         )
