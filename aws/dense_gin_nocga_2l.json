@@ -5,7 +5,7 @@
             "embed_size": 32,
             "growth": 8,
             "layers": 2,
-            "out": 32,
+            "out": 96,
             "cga": false,
             "global_condition": true
         },

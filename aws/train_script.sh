@@ -49,9 +49,10 @@ if [ $VOLUME_ID ]; then
     cd NeuralAlgorithmSelection
     git checkout develop
 		cd aws
+    sudo chmod +x ./install.sh
 
 		# Initiate training using the tensorflow_36 conda environment
-		sudo -H -u ubuntu bash -c "source /home/ubuntu/anaconda3/bin/activate pytorch_p36; install.sh; python ec2_spot_training.py /dltraining/datasets/ /dltraining/checkpoints/"
+		sudo -H -u ubuntu bash -c "source /home/ubuntu/anaconda3/bin/activate pytorch_p36; ./install.sh; python ec2_spot_training.py /dltraining/datasets/ /dltraining/checkpoints/"
 fi
 
 # After training, clean up by cancelling spot requests and terminating itself

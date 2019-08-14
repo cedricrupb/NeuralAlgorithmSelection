@@ -130,7 +130,7 @@ def execute_model(tools, config, dataset_path, name=None, ret=None, env=None):
 
     print(train)
 
-    best = 1000
+    best = 0
     save, load = build_model_io(env.get_cache_dir())
 
     start_time = time.time()
@@ -150,16 +150,16 @@ def execute_model(tools, config, dataset_path, name=None, ret=None, env=None):
             print("Time: %f sec" % (time.time() - start_time))
             start_time = time.time()
 
-            if val_loss < best:
-                best = val_loss
+            if val_score > best:
+                best = val_score
                 # save({
                 #    'model': train.optimizer.model,
                 #    'epoch': epoch,
-                #    'score': val_loss
+                #    'score': val_score
                 # })
 
     # model = load({'model': train.optimizer.model,
-    #              'score': 1000})['model']
+    #              'score': 0})['model']
 
     test_res = test(tools, model, dataset_path)
 
@@ -221,8 +221,8 @@ if __name__ == '__main__':
             'name': 'dense12_200_memory_%i' % i,
             'model': {
                 "type": "dense_gin",
-                "embed_size": 64,
-                "growth": 12,
+                "embed_size": 32,
+                "growth": 32,
                 "layers": 2,
                 "out": 96,
                 "global_condition": True,
@@ -238,15 +238,16 @@ if __name__ == '__main__':
             },
             'train': {
                 'loss': 'masked::HingeLoss',
-                'epoch': 200,
-                'batch': 32,
+                'epoch': 40,
+                'batch': 64,
                 'shuffle': 42,
                 'augment': False,
-                'optimizer': {'type': 'torch::Adam', 'lr': 0.01,
+                'clip_grad': 5,
+                'optimizer': {'type': 'torch::AdamW', 'lr': 0.01,
                               'weight_decay': 1e-4},
                 'scheduler': {
                     'type': 'torch::StepLR', 'mode': 'epoch',
-                    'step_size': 50, 'gamma': 0.5
+                    'step_size': 20, 'gamma': 0.5
                 },
                 'validate': {
                     'checkpoint_step': 0,
