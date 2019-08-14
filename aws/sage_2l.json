@@ -5,12 +5,10 @@
             "layers": [
                 {"type": "embed", "node_dim": 32},
                 {"type": "sage",
-                             "node_dim": 32,
-                             "norm": true
+                             "node_dim": 32
                              },
                {"type": "sage",
-                            "node_dim": 32,
-                            "norm": true
+                            "node_dim": 32
                             }
             ],
             "readout": [
