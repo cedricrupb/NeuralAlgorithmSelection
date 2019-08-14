@@ -222,7 +222,7 @@ if __name__ == '__main__':
             'model': {
                 "type": "dense_gin",
                 "embed_size": 32,
-                "growth": 32,
+                "growth": 16,
                 "layers": 2,
                 "out": 96,
                 "global_condition": True,
@@ -239,7 +239,7 @@ if __name__ == '__main__':
             'train': {
                 'loss': 'masked::HingeLoss',
                 'epoch': 40,
-                'batch': 64,
+                'batch': 32,
                 'shuffle': 42,
                 'augment': False,
                 'clip_grad': 5,

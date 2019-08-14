@@ -1,0 +1,22 @@
+{
+  "overall": {
+    "epoch": 10
+    "validate": 0.03
+  },
+  "reachability": {
+    "epoch": 10,
+    "validate": 0.03
+  },
+  "termination": {
+    "epoch": 40,
+    "validate": 0.03
+  },
+  "memory": {
+    "epoch": 40,
+    "validate": 0.1
+  },
+  "overflow": {
+    "epoch": 40,
+    "validate": 0.1
+  }
+}

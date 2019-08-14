@@ -521,7 +521,22 @@ def graph_augmention(options=[0, 1, 2, 5, 6]):
     return augment
 
 
-def dataset_transform(augment):
+def edge_subsample(size):
+
+    def subsample(data):
+        edge_index = data.edge_index
+        if edge_index.size(1) <= size:
+            return data
+
+        sample = th.randint(1, edge_index.size(1), (size,))
+        data.edge_index = data.edge_index[:, sample]
+
+        return data
+
+    return subsample
+
+
+def dataset_transform(augment, subsample):
 
     transform = None
     options = [0, 1, 2, 5, 6]
@@ -531,28 +546,38 @@ def dataset_transform(augment):
     if augment:
         transform = graph_augmention(options)
 
+    if subsample and subsample > 0:
+        sub = edge_subsample(subsample)
+        if transform is not None:
+            def chain(data):
+                return sub(transform(data))
+            transform = chain
+        else:
+            transform = sub
+
     return transform
 
 
 class DatasetOp:
 
-    def __init__(self, key, shuffle, augment=False):
+    def __init__(self, key, shuffle, augment=False, subsample=False):
         self.key = key
         self.shuffle = shuffle
         self.augment = augment
+        self.subsample = subsample
 
     def __call__(self, dataset_path, buffer=False):
         if buffer:
             return proto_data.InMemGraphDataset(
                 dataset_path, self.key, shuffle=self.shuffle,
                 transform=dataset_transform(
-                    self.augment
+                    self.augment, self.subsample
                 )
             )
         return proto_data.GraphDataset(
             dataset_path, self.key, shuffle=self.shuffle,
             transform=dataset_transform(
-                self.augment
+                self.augment, self.subsample
             )
         )
 
@@ -757,15 +782,19 @@ def build_training(config, model, data_key='train'):
         config['shuffle'] = True
     if 'augment' not in config:
         config['augment'] = False
+    if 'subsample' not in config:
+        config['subsample'] = False
 
     if isinstance(config['shuffle'], int):
         random.seed(config['shuffle'])
         th.manual_seed(config['shuffle'])
 
     config['dataset_op'] = DatasetOp(
-        data_key, config['shuffle'], config['augment']
+        data_key, config['shuffle'], config['augment'],
+        subsample=config['subsample']
     )
     del config['augment']
+    del config['subsample']
 
     config['scheduler'] = epoch_scheduler
 
