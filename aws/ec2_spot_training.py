@@ -1,6 +1,6 @@
 import argparse
 import json
-from . import execute as exc
+import execute as exc
 import os
 
 

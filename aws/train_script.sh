@@ -2,7 +2,7 @@
 # Get instance ID, Instance AZ, Volume ID and Volume AZ
 INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 INSTANCE_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-AWS_REGION=eu-west-1a
+AWS_REGION=eu-west-1
 
 VOLUME_ID=$(aws ec2 describe-volumes --region $AWS_REGION --filter "Name=tag:Name,Values=DL-NAS" --query "Volumes[].VolumeId" --output text)
 VOLUME_AZ=$(aws ec2 describe-volumes --region $AWS_REGION --filter "Name=tag:Name,Values=DL-NAS" --query "Volumes[].AvailabilityZone" --output text)
@@ -46,10 +46,12 @@ if [ $VOLUME_ID ]; then
 		# Get training code
 		git clone https://github.com/cedricrupb/NeuralAlgorithmSelection.git
 		chown -R ubuntu: NeuralAlgorithmSelection
-		cd NeuralAlgorithmSelection/aws
+    cd NeuralAlgorithmSelection
+    git checkout develop
+		cd aws
 
 		# Initiate training using the tensorflow_36 conda environment
-		sudo -H -u ubuntu bash -c "source /home/ubuntu/anaconda3/bin/activate pytorch_p36; python ec2_spot_training.py /dltraining/datasets/ /dltraining/checkpoints/"
+		sudo -H -u ubuntu bash -c "source /home/ubuntu/anaconda3/bin/activate pytorch_p36; install.sh; python ec2_spot_training.py /dltraining/datasets/ /dltraining/checkpoints/"
 fi
 
 # After training, clean up by cancelling spot requests and terminating itself

@@ -140,6 +140,7 @@ def prepare_dataset(path):
         return path, False
 
     out_path = path[:-4]
+    out_path, rest = os.path.split(out_path)
 
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -147,7 +148,7 @@ def prepare_dataset(path):
     with ZipFile(path, 'r') as zipObj:
         zipObj.extractall(out_path)
 
-    return out_path, True
+    return os.path.join(out_path, rest), True
 
 
 def train_model(tools, config, dataset_path, checkpoint_path=None):

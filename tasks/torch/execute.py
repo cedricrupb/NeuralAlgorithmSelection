@@ -221,7 +221,7 @@ if __name__ == '__main__':
             'name': 'dense12_200_memory_%i' % i,
             'model': {
                 "type": "dense_gin",
-                "embed_size": 32,
+                "embed_size": 64,
                 "growth": 12,
                 "layers": 2,
                 "out": 96,
