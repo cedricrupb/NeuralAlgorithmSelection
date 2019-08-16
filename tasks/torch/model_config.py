@@ -339,9 +339,9 @@ def micro_to_partial(config):
                 }
             ]
         else:
-            readout = [
-                'add'
-            ]
+            readout = [{
+                'type': 'add'
+            }]
         cfg = {
             'layers': Ls,
             'readout': readout

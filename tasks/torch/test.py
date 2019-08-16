@@ -19,7 +19,7 @@ class TestScorer:
 
         loader = self.data_op(dataset_path)
         loader = DataLoader(
-            loader, batch_size=32,
+            loader, batch_size=8,
             shuffle=False, num_workers=6
         )
 
@@ -67,7 +67,7 @@ class CategoryScorer:
 
         loader = self.data_op(dataset_path)
         loader = DataLoader(
-            loader, batch_size=32,
+            loader, batch_size=8,
             shuffle=False, num_workers=6
         )
 

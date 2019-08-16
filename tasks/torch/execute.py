@@ -218,28 +218,20 @@ if __name__ == '__main__':
     for i in range(1):
 
         config = {
-            'name': 'dense12_200_memory_%i' % i,
+            'name': 'dense32_200_overall_%i' % i,
             'model': {
+                "type": "dense_gin",
+                "embed_size": 32,
+                "growth": 32,
+                "layers": 2,
+                "out": 96,
                 "global_condition": True,
-                "layers": [
-                    {"type": "embed", "node_dim": 32},
-                    {"type": "gat",
-                                 "node_dim": 32
-                                 },
-                   {"type": "gat",
-                                "node_dim": 32
-                                }
-                ],
-                "readout": [
-                    {"type": "add"},
-                    {"type": "add"},
-                    {"type": "add"}
-                ]
+                "global_norm": True
             },
             'dataset': {
-                'key': 'rank18_memory_%i' % i,
+                'key': 'rank18_overall_%i' % i,
                 'competition': '2018',
-                'category': 'memory',
+                'category': None,
                 'test_ratio': 0.2,
                 'min_tool_coverage': 0.8,
                 'ast_type': 'bag'
@@ -251,6 +243,7 @@ if __name__ == '__main__':
                 'shuffle': 42,
                 'augment': False,
                 'clip_grad': 5,
+                'subsample': 10000,
                 'optimizer': {'type': 'torch::AdamW', 'lr': 0.01,
                               'weight_decay': 1e-4},
                 'scheduler': {
@@ -260,7 +253,7 @@ if __name__ == '__main__':
                 'validate': {
                     'checkpoint_step': 0,
                     'score': 'spearmann',
-                    'split': 0.1
+                    'split': 0.03
                 }
             },
             'test': {'type': 'category', 'scores': 'spearmann'}

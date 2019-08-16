@@ -701,6 +701,10 @@ class ModelTrainer:
                 tqdm(iterator, total=self.total_batches)
 
             for i, batch in iterator:
+                if batch.num_graphs <= 1:
+                    print("There exists compatible issues for batches of size 1. Skip.")
+                    continue
+
                 batch = batch.to(device)
                 batch.x = norm_func(batch.x)
                 train_loss = self.optimizer.train(
