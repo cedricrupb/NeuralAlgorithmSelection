@@ -88,6 +88,10 @@ class GraphModule(th.nn.Module):
         self.activation = th.nn.ModuleDict(modules)
         self.funcs = funcs
         self._sequence = sequence
+        self._callback = []
+
+    def register_callback(self, cb):
+        self._callback.append(cb)
 
     def _execute(self, action, kwargs):
 
@@ -107,6 +111,12 @@ class GraphModule(th.nn.Module):
             return self.funcs[action](**kwargs)
 
         module = self.activation[action]
+
+        for cb in self._callback:
+            tmp = cb(module, kwargs)
+            if tmp is not None:
+                kwargs = tmp
+
         return module(**kwargs)
 
     def forward(self, input):

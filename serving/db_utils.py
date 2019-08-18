@@ -7,6 +7,7 @@ from tqdm import tqdm
 from bson.objectid import ObjectId
 from tasks.torch_model import build_model_from_config
 from tasks.torch_execute import tensor_len, model_seq
+from tasks.torch.graph import build_graph
 import torch as th
 import os
 
@@ -70,12 +71,12 @@ def get_config():
 
 def get_experiment_info():
     db = get_db()
-    models = db.torch_models
+    models = db.torch_experiment
 
     options = {}
 
-    for o in models.find({}, ['dataset', 'model_key', 'spearmann']):
-        key = (o['dataset'], o['model_key'])
+    for o in models.find({}, ['dataset', 'experiment', 'spearmann']):
+        key = (o['dataset'], o['experiment'])
         if key in options:
             opt = options[key]
             if o['spearmann']['mean'] > opt['score']:
@@ -95,7 +96,7 @@ def get_experiment_info():
 
 def load_model(id):
     db = get_db()
-    models = db.torch_models
+    models = db.torch_experiment
 
     f = models.find_one({'_id': ObjectId(id)})
     if f is None:
@@ -107,18 +108,13 @@ def load_model(id):
     state = th.load("tmp")
     os.remove("tmp")
 
-    model, out_channels = build_model_from_config(f['model_def'])
+    model_def = f['experiment_def']['model']
 
-    final = th.nn.Linear(out_channels, tensor_len(f['tools']))
-    try:
-        out = model_seq(f['model_def'], model, final)
-        out.load_state_dict(state)
-    except Exception:
-        out = th.nn.Sequential(model, th.nn.Dropout(0.1), final)
-        out.load_state_dict(state)
-    out.eval()
+    model = build_graph(model_def).compile()
+    model.load_state_dict(state)
+    model.eval()
 
-    return out, model, f
+    return model, f
 
 
 def get_ast_index():

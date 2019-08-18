@@ -63,7 +63,7 @@ class ConditionalGlobalAttention(th.nn.Module):
     def reset_parameters(self):
         self.query_embed.reset_parameters()
 
-    def forward(self, x, batch, condition, size=None):
+    def forward(self, x, batch, condition, size=None, return_attention=False):
 
         x = x.unsqueeze(-1) if x.dim() == 1 else x
         attention = self.attention(x, batch, condition, size)
@@ -77,6 +77,10 @@ class ConditionalGlobalAttention(th.nn.Module):
             out = nodes * out
 
         out = scatter_('add', out, batch, size)
+
+        if return_attention:
+            return out, attention
+
         return out
 
 

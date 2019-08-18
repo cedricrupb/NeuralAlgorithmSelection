@@ -123,7 +123,7 @@ class DenseEGIN(MessagePassing):
 
 class DenseEdgeLayer(MessagePassing):
 
-    def __init__(self, in_channels, edge_channels, out_channels):
+    def __init__(self, in_channels, edge_channels, out_channels, m=4):
         super().__init__(aggr='add')
         growth = out_channels - in_channels
         in_size = in_channels + edge_channels
@@ -131,10 +131,10 @@ class DenseEdgeLayer(MessagePassing):
         self.nn = th.nn.Sequential(
             th.nn.BatchNorm1d(in_size),
             th.nn.ReLU(),
-            th.nn.Linear(in_size, 4*growth),
-            th.nn.BatchNorm1d(4*growth),
+            th.nn.Linear(in_size, m*growth),
+            th.nn.BatchNorm1d(m*growth),
             th.nn.ReLU(),
-            th.nn.Linear(4*growth, growth),
+            th.nn.Linear(m*growth, growth),
             th.nn.BatchNorm1d(growth),
             th.nn.ReLU()
         )
@@ -155,7 +155,7 @@ class DenseEdgeLayer(MessagePassing):
 
 class DenseNodeLayer(MessagePassing):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, m=4):
         super().__init__(aggr='add')
         growth = out_channels - in_channels
         in_size = in_channels
@@ -163,11 +163,10 @@ class DenseNodeLayer(MessagePassing):
         self.nn = th.nn.Sequential(
             th.nn.BatchNorm1d(in_size),
             th.nn.ReLU(),
-            th.nn.Linear(in_size, 4*growth),
-            th.nn.BatchNorm1d(4*growth),
+            th.nn.Linear(in_size, m*growth),
+            th.nn.BatchNorm1d(m*growth),
             th.nn.ReLU(),
-            th.nn.Linear(4*growth, growth),
-            th.nn.BatchNorm1d(growth),
+            th.nn.Linear(m*growth, growth),
             th.nn.ReLU()
         )
 
@@ -187,7 +186,7 @@ class DenseNodeLayer(MessagePassing):
 class DenseEdgeGIN(th.nn.Module):
 
     def __init__(self, in_channels, edge_channels, out_channels,
-                 embed_size, growth, layers=2, edge=True):
+                 embed_size, growth, layers=2, edge=True, bm=4):
         super().__init__()
         mid = int((in_channels + embed_size)/2)
         self.in_gate = th.nn.Sequential(
@@ -206,10 +205,10 @@ class DenseEdgeGIN(th.nn.Module):
         for i in range(layers):
             layer.append(
                 DenseEdgeLayer(
-                    size, edge_channels, size + growth
+                    size, edge_channels, size + growth, m=bm
                 ) if edge else
                 DenseNodeLayer(
-                    size, size + growth
+                    size, size + growth, m=bm
                 )
             )
             size += growth

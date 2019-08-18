@@ -316,13 +316,17 @@ def micro_to_partial(config):
         edge = True
         if 'edge' in config:
             edge = config['edge']
+        m = 4
+        if 'bm' in config:
+            m = config['bm']
         Ls = [{
                 'type': 'mx::DenseEdgeGIN',
                 'node_dim': config['out'],
                 'growth': config['growth'],
                 "embed_size": config['embed_size'],
                 "layers": config['layers'],
-                'edge': edge
+                'edge': edge,
+                "bm": m
                }]
         cga = True
         if 'cga' in config:

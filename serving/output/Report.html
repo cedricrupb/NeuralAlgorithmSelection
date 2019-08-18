@@ -1593,15 +1593,15 @@ with considerably less effort */
 
 var argJson = {}
 
-var sourceFiles = [".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c"];
+var sourceFiles = [".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c"];
 var cfaJson = {
 "functionNames":["main","fib"],
-"functionCallEdges":{"18":[100002,19],"20":[100003,21],"7":[100001,8]},
-"combinedNodes":{"23":[24,25,2,3]},
-"combinedNodesLabels":{"23":"23 int main();\n24 int fib(int n);\n25 Function start dummy edge\n2 int inp = 5;\n3 while"},
-"mergedNodes":[24,25,2,3],
-"nodes":[{"func":"main","loop":false,"index":0,"rpid":4,"type":"exit"},{"func":"main","loop":false,"index":1,"rpid":12,"type":"entry"},{"func":"main","loop":false,"index":2,"rpid":8,"type":""},{"func":"main","loop":false,"index":3,"rpid":7,"type":""},{"func":"main","loop":true,"index":4,"rpid":6,"type":""},{"func":"main","loop":false,"index":5,"rpid":3,"type":""},{"func":"main","loop":false,"index":6,"rpid":5,"type":""},{"func":"main","loop":false,"index":7,"rpid":2,"type":""},{"func":"main","loop":false,"index":8,"rpid":1,"type":""},{"func":"main","loop":false,"index":9,"rpid":0,"type":""},{"func":"fib","loop":false,"index":11,"rpid":0,"type":"exit"},{"func":"fib","loop":false,"index":12,"rpid":8,"type":"entry"},{"func":"fib","loop":false,"index":13,"rpid":7,"type":""},{"func":"fib","loop":false,"index":15,"rpid":1,"type":""},{"func":"fib","loop":false,"index":16,"rpid":6,"type":""},{"func":"fib","loop":false,"index":18,"rpid":5,"type":""},{"func":"fib","loop":false,"index":19,"rpid":4,"type":""},{"func":"fib","loop":false,"index":20,"rpid":3,"type":""},{"func":"fib","loop":false,"index":21,"rpid":2,"type":""},{"func":"main","loop":false,"index":23,"rpid":11,"type":""},{"func":"main","loop":false,"index":24,"rpid":10,"type":""},{"func":"main","loop":false,"index":25,"rpid":9,"type":""}],
-"edges":[{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":15,"source":19,"type":"DeclarationEdge","stmt":"int right;","target":20},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":15,"source":20,"type":"StatementEdge","stmt":"right = fib(n - 2);","target":21},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":1,"source":23,"type":"DeclarationEdge","stmt":"int main();","target":24},{"file":"<none>","line":0,"source":1,"type":"BlankEdge","stmt":"INIT GLOBAL VARS","target":23},{"file":"<none>","line":0,"source":12,"type":"BlankEdge","stmt":"Function start dummy edge","target":13},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":14,"source":18,"type":"StatementEdge","stmt":"left = fib(n - 1);","target":19},{"file":"<none>","line":0,"source":25,"type":"BlankEdge","stmt":"Function start dummy edge","target":2},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":2,"source":2,"type":"DeclarationEdge","stmt":"int inp = 5;","target":3},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":3,"source":3,"type":"BlankEdge","stmt":"while","target":4},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":12,"source":15,"type":"ReturnStatementEdge","stmt":"return n;","target":11},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":3,"source":4,"type":"AssumeEdge","stmt":"[inp >= 0]","target":5},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":3,"source":4,"type":"AssumeEdge","stmt":"[!(inp >= 0)]","target":6},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":4,"source":5,"type":"DeclarationEdge","stmt":"int res;","target":7},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":4,"source":7,"type":"StatementEdge","stmt":"res = fib(inp);","target":8},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":16,"source":21,"type":"ReturnStatementEdge","stmt":"return left + right;","target":11},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":5,"source":8,"type":"StatementEdge","stmt":"inp = inp - 1;","target":9},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":7,"source":6,"type":"ReturnStatementEdge","stmt":"return 0;","target":0},{"file":"<none>","line":0,"source":9,"type":"BlankEdge","stmt":"","target":4},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":10,"source":24,"type":"DeclarationEdge","stmt":"int fib(int n);","target":25},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":11,"source":13,"type":"AssumeEdge","stmt":"[n <= 1]","target":15},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":14,"source":16,"type":"DeclarationEdge","stmt":"int left;","target":18},{"file":".\/process\/2f2f9524-6d32-410e-b73c-738d1a42ef55\/file.c","line":11,"source":13,"type":"AssumeEdge","stmt":"[!(n <= 1)]","target":16}]
+"functionCallEdges":{"2":[100001,3],"11":[100002,12],"13":[100003,14]},
+"combinedNodes":{"16":[17,18]},
+"combinedNodesLabels":{"16":"16 int main();\n17 int fib(int i);\n18 Function start dummy edge"},
+"mergedNodes":[17,18],
+"nodes":[{"func":"main","loop":false,"index":0,"rpid":0,"type":"exit"},{"func":"main","loop":false,"index":1,"rpid":6,"type":"entry"},{"func":"main","loop":false,"index":2,"rpid":2,"type":""},{"func":"main","loop":false,"index":3,"rpid":1,"type":""},{"func":"fib","loop":false,"index":5,"rpid":0,"type":"exit"},{"func":"fib","loop":false,"index":6,"rpid":8,"type":"entry"},{"func":"fib","loop":false,"index":7,"rpid":7,"type":""},{"func":"fib","loop":false,"index":8,"rpid":6,"type":""},{"func":"fib","loop":false,"index":9,"rpid":1,"type":""},{"func":"fib","loop":false,"index":11,"rpid":5,"type":""},{"func":"fib","loop":false,"index":12,"rpid":4,"type":""},{"func":"fib","loop":false,"index":13,"rpid":3,"type":""},{"func":"fib","loop":false,"index":14,"rpid":2,"type":""},{"func":"main","loop":false,"index":16,"rpid":5,"type":""},{"func":"main","loop":false,"index":17,"rpid":4,"type":""},{"func":"main","loop":false,"index":18,"rpid":3,"type":""}],
+"edges":[{"file":"<none>","line":0,"source":1,"type":"BlankEdge","stmt":"INIT GLOBAL VARS","target":16},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":12,"source":8,"type":"DeclarationEdge","stmt":"int __CPAchecker_TMP_0;","target":11},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":12,"source":12,"type":"DeclarationEdge","stmt":"int __CPAchecker_TMP_1;","target":13},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":6,"source":17,"type":"DeclarationEdge","stmt":"int fib(int i);","target":18},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":2,"source":2,"type":"StatementEdge","stmt":"fib(5);","target":3},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":8,"source":7,"type":"AssumeEdge","stmt":"[i <= 1]","target":9},{"file":"<none>","line":0,"source":6,"type":"BlankEdge","stmt":"Function start dummy edge","target":7},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":8,"source":7,"type":"AssumeEdge","stmt":"[!(i <= 1)]","target":8},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":12,"source":14,"type":"ReturnStatementEdge","stmt":"return __CPAchecker_TMP_0 + __CPAchecker_TMP_1;","target":5},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":9,"source":9,"type":"ReturnStatementEdge","stmt":"return 1;","target":5},{"file":"<none>","line":0,"source":18,"type":"BlankEdge","stmt":"Function start dummy edge","target":2},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":12,"source":11,"type":"StatementEdge","stmt":"__CPAchecker_TMP_0 = fib(i - 1);","target":12},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":12,"source":13,"type":"StatementEdge","stmt":"__CPAchecker_TMP_1 = fib(i - 2);","target":14},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":1,"source":16,"type":"DeclarationEdge","stmt":"int main();","target":17},{"file":".\/process\/9a47ac26-6697-498c-80c1-7e49a4f6ab96\/file.c","line":3,"source":3,"type":"ReturnStatementEdge","stmt":"return 0;","target":0}]
 }
 
 // CFA graph variable declarations
@@ -2955,9 +2955,9 @@ function init() {
     </a>
     <h1>
       Report for
-./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/file.c    </h1>
+./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/file.c    </h1>
     <span class="badge badge-info generated">
-Generated on 2019-08-12 12:06:30 by CPAchecker 1.7-svn    </span>
+Generated on 2019-08-16 17:57:44 by CPAchecker 1.7-svn    </span>
   </header>
 
   <div class="modal fade" id="renderStateModal" role="dialog" aria-hidden="true">
@@ -3160,38 +3160,32 @@ Generated on 2019-08-12 12:06:30 by CPAchecker 1.7-svn    </span>
 <div class="sourceContent" ng-show = "sourceFileIsSet(0)">
 <table>
 <tr id="source-1"><td><pre>1</pre></td><td><pre class="prettyprint">int main() {  </pre></td></tr>
-<tr id="source-2"><td><pre>2</pre></td><td><pre class="prettyprint">  int inp = 5;  </pre></td></tr>
-<tr id="source-3"><td><pre>3</pre></td><td><pre class="prettyprint">  while(inp &gt;= 0){  </pre></td></tr>
-<tr id="source-4"><td><pre>4</pre></td><td><pre class="prettyprint">   	int res = fib(inp);  </pre></td></tr>
-<tr id="source-5"><td><pre>5</pre></td><td><pre class="prettyprint">    inp = inp - 1;  </pre></td></tr>
-<tr id="source-6"><td><pre>6</pre></td><td><pre class="prettyprint">  }  </pre></td></tr>
-<tr id="source-7"><td><pre>7</pre></td><td><pre class="prettyprint">  return 0;  </pre></td></tr>
-<tr id="source-8"><td><pre>8</pre></td><td><pre class="prettyprint">}  </pre></td></tr>
-<tr id="source-9"><td><pre>9</pre></td><td><pre class="prettyprint">  </pre></td></tr>
-<tr id="source-10"><td><pre>10</pre></td><td><pre class="prettyprint">int fib(int n){  </pre></td></tr>
-<tr id="source-11"><td><pre>11</pre></td><td><pre class="prettyprint"> 	if(n &lt;= 1){  </pre></td></tr>
-<tr id="source-12"><td><pre>12</pre></td><td><pre class="prettyprint">     	return n;   </pre></td></tr>
-<tr id="source-13"><td><pre>13</pre></td><td><pre class="prettyprint">    } else {  </pre></td></tr>
-<tr id="source-14"><td><pre>14</pre></td><td><pre class="prettyprint">      int left = fib(n - 1);  </pre></td></tr>
-<tr id="source-15"><td><pre>15</pre></td><td><pre class="prettyprint">      int right = fib(n - 2);  </pre></td></tr>
-<tr id="source-16"><td><pre>16</pre></td><td><pre class="prettyprint">      return left + right;  </pre></td></tr>
-<tr id="source-17"><td><pre>17</pre></td><td><pre class="prettyprint">    }  </pre></td></tr>
-<tr id="source-18"><td><pre>18</pre></td><td><pre class="prettyprint">    </pre></td></tr>
-<tr id="source-19"><td><pre>19</pre></td><td><pre class="prettyprint">}  </pre></td></tr>
+<tr id="source-2"><td><pre>2</pre></td><td><pre class="prettyprint">  fib(5);  </pre></td></tr>
+<tr id="source-3"><td><pre>3</pre></td><td><pre class="prettyprint">  return 0;  </pre></td></tr>
+<tr id="source-4"><td><pre>4</pre></td><td><pre class="prettyprint">}  </pre></td></tr>
+<tr id="source-5"><td><pre>5</pre></td><td><pre class="prettyprint">  </pre></td></tr>
+<tr id="source-6"><td><pre>6</pre></td><td><pre class="prettyprint">int fib(int i){  </pre></td></tr>
+<tr id="source-7"><td><pre>7</pre></td><td><pre class="prettyprint">  </pre></td></tr>
+<tr id="source-8"><td><pre>8</pre></td><td><pre class="prettyprint">  if(i &lt;= 1){  </pre></td></tr>
+<tr id="source-9"><td><pre>9</pre></td><td><pre class="prettyprint">    return 1;  </pre></td></tr>
+<tr id="source-10"><td><pre>10</pre></td><td><pre class="prettyprint">  }  </pre></td></tr>
+<tr id="source-11"><td><pre>11</pre></td><td><pre class="prettyprint">  </pre></td></tr>
+<tr id="source-12"><td><pre>12</pre></td><td><pre class="prettyprint">  return fib(i - 1) + fib(i - 2);  </pre></td></tr>
+<tr id="source-13"><td><pre>13</pre></td><td><pre class="prettyprint">}  </pre></td></tr>
 </table></div>
       </div>
       <div class="fileContent content" ng-show="tabIsSet(4)" ng-class="{active: tabIsSet(4)}">
 <table  id="log_table" class="display" style="width:100%;padding: 10px" class="table table-bordered"><thead class="thead-light"><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Log Level</th><th scope="col">Log Info</th><th scope="col">Log Message</th></tr></thead><tbody>
-<tr id="log-0"><th scope="row">2019-08-12</th><td>12:06:27:833</td><td>INFO</td><td>CPAchecker.run</td><td>CPAchecker 1.7-svn (Java HotSpot(TM) 64-Bit Server VM 1.8.0_101) started</td></tr>
-<tr id="log-2"><th scope="row">2019-08-12</th><td>12:06:29:593</td><td>INFO</td><td>CoreComponentsFactory.createAlgorithm</td><td>Using Neural Graph generation algorithm</td></tr>
-<tr id="log-4"><th scope="row">2019-08-12</th><td>12:06:29:609</td><td>WARNING</td><td>CPAchecker.printConfigurationWarnings</td><td>The following configuration options were specified but are not used:</td></tr>
-<tr id="log-13"><th scope="row">2019-08-12</th><td>12:06:29:609</td><td>INFO</td><td>CPAchecker.runAlgorithm</td><td>Starting analysis ...</td></tr>
-<tr id="log-15"><th scope="row">2019-08-12</th><td>12:06:29:613</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Start CFA processing....</td></tr>
-<tr id="log-17"><th scope="row">2019-08-12</th><td>12:06:29:692</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Add data dependencies</td></tr>
-<tr id="log-19"><th scope="row">2019-08-12</th><td>12:06:29:698</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Add control dependencies</td></tr>
-<tr id="log-21"><th scope="row">2019-08-12</th><td>12:06:29:706</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Write graph to ./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/graph.json</td></tr>
-<tr id="log-23"><th scope="row">2019-08-12</th><td>12:06:29:737</td><td>INFO</td><td>CPAchecker.runAlgorithm</td><td>Stopping analysis ...</td></tr>
-<tr id="log-25"><th scope="row">2019-08-12</th><td>12:06:29:748</td><td>WARNING</td><td>CPAchecker.analyzeResult</td><td>Analysis not completed: there are still states to be processed.</td></tr>
+<tr id="log-0"><th scope="row">2019-08-16</th><td>17:57:43:067</td><td>INFO</td><td>CPAchecker.run</td><td>CPAchecker 1.7-svn (Java HotSpot(TM) 64-Bit Server VM 1.8.0_101) started</td></tr>
+<tr id="log-2"><th scope="row">2019-08-16</th><td>17:57:44:614</td><td>INFO</td><td>CoreComponentsFactory.createAlgorithm</td><td>Using Neural Graph generation algorithm</td></tr>
+<tr id="log-4"><th scope="row">2019-08-16</th><td>17:57:44:628</td><td>WARNING</td><td>CPAchecker.printConfigurationWarnings</td><td>The following configuration options were specified but are not used:</td></tr>
+<tr id="log-13"><th scope="row">2019-08-16</th><td>17:57:44:628</td><td>INFO</td><td>CPAchecker.runAlgorithm</td><td>Starting analysis ...</td></tr>
+<tr id="log-15"><th scope="row">2019-08-16</th><td>17:57:44:630</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Start CFA processing....</td></tr>
+<tr id="log-17"><th scope="row">2019-08-16</th><td>17:57:44:694</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Add data dependencies</td></tr>
+<tr id="log-19"><th scope="row">2019-08-16</th><td>17:57:44:701</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Add control dependencies</td></tr>
+<tr id="log-21"><th scope="row">2019-08-16</th><td>17:57:44:715</td><td>INFO</td><td>NeuralGraphGenAlgorithm.run</td><td>Write graph to ./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/graph.json</td></tr>
+<tr id="log-23"><th scope="row">2019-08-16</th><td>17:57:44:742</td><td>INFO</td><td>CPAchecker.runAlgorithm</td><td>Stopping analysis ...</td></tr>
+<tr id="log-25"><th scope="row">2019-08-16</th><td>17:57:44:748</td><td>WARNING</td><td>CPAchecker.analyzeResult</td><td>Analysis not completed: there are still states to be processed.</td></tr>
 </tbody></table>
       </div>
       <div class="fileContent content" ng-show="tabIsSet(5)" ng-class="{active: tabIsSet(5)}">
@@ -3202,18 +3196,18 @@ Generated on 2019-08-12 12:06:30 by CPAchecker 1.7-svn    </span>
 <tr id="statistics-9"><td>Automaton transfer successors</td><td>                     0.00 </td><td>sum: 0, count: 0, min: 0, max: 0 []</td></tr>
 <tr class="table_head" id="statistics-12"><th>Code Coverage</th><th></th><th></th></tr><tr id="statistics-14"><td>	  Function coverage</td><td>      0.500</td><td></td></tr>
 <tr id="statistics-16"><td>	  Visited lines</td><td>          0</td><td></td></tr>
-<tr id="statistics-18"><td>	  Total lines</td><td>            10</td><td></td></tr>
+<tr id="statistics-18"><td>	  Total lines</td><td>            5</td><td></td></tr>
 <tr id="statistics-20"><td>	  Line coverage</td><td>          0.000</td><td></td></tr>
 <tr id="statistics-22"><td>	  Visited conditions</td><td>     0</td><td></td></tr>
-<tr id="statistics-24"><td>	  Total conditions</td><td>       4</td><td></td></tr>
+<tr id="statistics-24"><td>	  Total conditions</td><td>       2</td><td></td></tr>
 <tr id="statistics-26"><td>	  Condition coverage</td><td>     0.000</td><td></td></tr>
-<tr class="table_head" id="statistics-29"><th>CPAchecker general statistics</th><th></th><th></th></tr><tr id="statistics-31"><td>Number of program locations</td><td>                       22</td><td></td></tr>
-<tr id="statistics-33"><td>Number of CFA edges (per node)</td><td>                          28 </td><td>count: 22, min: 0, max: 3, avg: 1.27</td></tr>
-<tr id="statistics-35"><td>Number of relevant variables</td><td>                      2</td><td></td></tr>
+<tr class="table_head" id="statistics-29"><th>CPAchecker general statistics</th><th></th><th></th></tr><tr id="statistics-31"><td>Number of program locations</td><td>                       16</td><td></td></tr>
+<tr id="statistics-33"><td>Number of CFA edges (per node)</td><td>                          21 </td><td>count: 16, min: 0, max: 3, avg: 1.31</td></tr>
+<tr id="statistics-35"><td>Number of relevant variables</td><td>                      1</td><td></td></tr>
 <tr id="statistics-37"><td>Number of functions</td><td>                               2</td><td></td></tr>
-<tr id="statistics-39"><td>Number of loops (and loop nodes)</td><td>                         1 </td><td>sum: 5, min: 5, max: 5, avg: 5.00</td></tr>
+<tr id="statistics-39"><td>Number of loops (and loop nodes)</td><td>                         0 </td><td>sum: 0, min: 0, max: 0, avg: 0.00</td></tr>
 <tr id="statistics-41"><td>Size of reached set</td><td>             1</td><td></td></tr>
-<tr id="statistics-43"><td>	  Number of reached locations</td><td>   1 </td><td>5%</td></tr>
+<tr id="statistics-43"><td>	  Number of reached locations</td><td>   1 </td><td>6%</td></tr>
 <tr id="statistics-45"><td>		    Avg states per location</td><td>     1</td><td></td></tr>
 <tr id="statistics-47"><td>		    Max states per location</td><td>     1 </td><td>at node N1</td></tr>
 <tr id="statistics-49"><td>	  Number of reached functions</td><td>   1 </td><td>50%</td></tr>
@@ -3222,46 +3216,46 @@ Generated on 2019-08-12 12:06:30 by CPAchecker 1.7-svn    </span>
 <tr id="statistics-55"><td>		    Max size of partitions</td><td>      1</td><td></td></tr>
 <tr id="statistics-57"><td>	  Number of target states</td><td>       0</td><td></td></tr>
 <tr id="statistics-59"><td>	  Size of final wait list</td><td>       1</td><td></td></tr>
-<tr id="statistics-62"><td>Time for analysis setup</td><td>          1.748s</td><td></td></tr>
-<tr id="statistics-64"><td>	  Time for loading CPAs</td><td>          0.495s</td><td></td></tr>
-<tr id="statistics-66"><td>	  Time for loading parser</td><td>        0.373s</td><td></td></tr>
-<tr id="statistics-68"><td>	  Time for CFA construction</td><td>      0.814s</td><td></td></tr>
-<tr id="statistics-70"><td>		    Time for parsing file(s)</td><td>     0.386s</td><td></td></tr>
-<tr id="statistics-72"><td>		    Time for AST to CFA</td><td>          0.199s</td><td></td></tr>
+<tr id="statistics-62"><td>Time for analysis setup</td><td>          1.511s</td><td></td></tr>
+<tr id="statistics-64"><td>	  Time for loading CPAs</td><td>          0.410s</td><td></td></tr>
+<tr id="statistics-66"><td>	  Time for loading parser</td><td>        0.386s</td><td></td></tr>
+<tr id="statistics-68"><td>	  Time for CFA construction</td><td>      0.566s</td><td></td></tr>
+<tr id="statistics-70"><td>		    Time for parsing file(s)</td><td>     0.307s</td><td></td></tr>
+<tr id="statistics-72"><td>		    Time for AST to CFA</td><td>          0.109s</td><td></td></tr>
 <tr id="statistics-74"><td>		    Time for CFA sanity check</td><td>    0.007s</td><td></td></tr>
-<tr id="statistics-76"><td>		    Time for post-processing</td><td>     0.162s</td><td></td></tr>
-<tr id="statistics-78"><td>		    Time for CFA export</td><td>          0.937s</td><td></td></tr>
-<tr id="statistics-80"><td>			      Time for function pointers resolving</td><td>            0.005s</td><td></td></tr>
+<tr id="statistics-76"><td>		    Time for post-processing</td><td>     0.099s</td><td></td></tr>
+<tr id="statistics-78"><td>		    Time for CFA export</td><td>          0.646s</td><td></td></tr>
+<tr id="statistics-80"><td>			      Time for function pointers resolving</td><td>            0.002s</td><td></td></tr>
 <tr id="statistics-82"><td>				        Function calls via function pointers</td><td>             0 </td><td>count: 1, min: 0, max: 0, avg: 0.00</td></tr>
 <tr id="statistics-84"><td>				        Instrumented function pointer calls</td><td>              0 </td><td>count: 1, min: 0, max: 0, avg: 0.00</td></tr>
 <tr id="statistics-86"><td>				        Function calls with function pointer arguments</td><td>        0 </td><td>count: 1, min: 0, max: 0, avg: 0.00</td></tr>
 <tr id="statistics-88"><td>				        Instrumented function pointer arguments</td><td>          0 </td><td>count: 1, min: 0, max: 0, avg: 0.00</td></tr>
-<tr id="statistics-90"><td>			      Time for var class.</td><td>                             0.098s</td><td></td></tr>
-<tr id="statistics-92"><td>				        Time for collecting variables</td><td>                 0.036s</td><td></td></tr>
+<tr id="statistics-90"><td>			      Time for var class.</td><td>                             0.066s</td><td></td></tr>
+<tr id="statistics-92"><td>				        Time for collecting variables</td><td>                 0.016s</td><td></td></tr>
 <tr id="statistics-94"><td>				        Time for solving dependencies</td><td>                 0.001s</td><td></td></tr>
 <tr id="statistics-96"><td>				        Time for building hierarchy</td><td>                   0.000s</td><td></td></tr>
-<tr id="statistics-98"><td>				        Time for building classification</td><td>              0.058s</td><td></td></tr>
-<tr id="statistics-100"><td>				        Time for exporting data</td><td>                       0.003s</td><td></td></tr>
-<tr id="statistics-102"><td>Time for Analysis</td><td>                0.126s</td><td></td></tr>
-<tr id="statistics-104"><td>CPU time for analysis</td><td>            0.169s</td><td></td></tr>
-<tr id="statistics-106"><td>Time for analyzing result</td><td>        0.010s</td><td></td></tr>
-<tr id="statistics-108"><td>Total time for CPAchecker</td><td>        1.883s</td><td></td></tr>
-<tr id="statistics-110"><td>Total CPU time for CPAchecker</td><td>    3.578s</td><td></td></tr>
-<tr id="statistics-112"><td>Time for statistics</td><td>              0.183s</td><td></td></tr>
-<tr id="statistics-115"><td>Time for Garbage Collector</td><td>       0.088s </td><td>in 5 runs</td></tr>
+<tr id="statistics-98"><td>				        Time for building classification</td><td>              0.038s</td><td></td></tr>
+<tr id="statistics-100"><td>				        Time for exporting data</td><td>                       0.011s</td><td></td></tr>
+<tr id="statistics-102"><td>Time for Analysis</td><td>                0.112s</td><td></td></tr>
+<tr id="statistics-104"><td>CPU time for analysis</td><td>            0.163s</td><td></td></tr>
+<tr id="statistics-106"><td>Time for analyzing result</td><td>        0.006s</td><td></td></tr>
+<tr id="statistics-108"><td>Total time for CPAchecker</td><td>        1.633s</td><td></td></tr>
+<tr id="statistics-110"><td>Total CPU time for CPAchecker</td><td>    3.377s</td><td></td></tr>
+<tr id="statistics-112"><td>Time for statistics</td><td>              0.099s</td><td></td></tr>
+<tr id="statistics-115"><td>Time for Garbage Collector</td><td>       0.107s </td><td>in 4 runs</td></tr>
 <tr id="statistics-117"><td>Garbage Collector(s) used</td><td>    PS MarkSweep, PS Scavenge</td><td></td></tr>
-<tr id="statistics-119"><td>Used heap memory</td><td>                 45MB (    43 MiB) max;     26MB (    25 MiB) avg;     54MB (    52 MiB) peak</td><td></td></tr>
-<tr id="statistics-121"><td>Used non-heap memory</td><td>             31MB (    29 MiB) max;     22MB (    21 MiB) avg;     32MB (    30 MiB) peak</td><td></td></tr>
-<tr id="statistics-123"><td>Used in PS Old Gen pool</td><td>          15MB (    14 MiB) max;      7MB (     6 MiB) avg;     15MB (    14 MiB) peak</td><td></td></tr>
-<tr id="statistics-125"><td>Allocated heap memory</td><td>           145MB (   138 MiB) max;    132MB (   126 MiB) avg</td><td></td></tr>
-<tr id="statistics-127"><td>Allocated non-heap memory</td><td>        32MB (    30 MiB) max;     23MB (    22 MiB) avg</td><td></td></tr>
-<tr id="statistics-129"><td>Total process virtual memory</td><td>  17020MB ( 16232 MiB) max;  16980MB ( 16193 MiB) avg</td><td></td></tr>
+<tr id="statistics-119"><td>Used heap memory</td><td>                 67MB (    63 MiB) max;     34MB (    33 MiB) avg;     80MB (    76 MiB) peak</td><td></td></tr>
+<tr id="statistics-121"><td>Used non-heap memory</td><td>             30MB (    28 MiB) max;     21MB (    20 MiB) avg;     31MB (    30 MiB) peak</td><td></td></tr>
+<tr id="statistics-123"><td>Used in PS Old Gen pool</td><td>          17MB (    16 MiB) max;      5MB (     4 MiB) avg;     17MB (    16 MiB) peak</td><td></td></tr>
+<tr id="statistics-125"><td>Allocated heap memory</td><td>           163MB (   155 MiB) max;    147MB (   140 MiB) avg</td><td></td></tr>
+<tr id="statistics-127"><td>Allocated non-heap memory</td><td>        31MB (    29 MiB) max;     21MB (    20 MiB) avg</td><td></td></tr>
+<tr id="statistics-129"><td>Total process virtual memory</td><td>  17019MB ( 16230 MiB) max;  16974MB ( 16188 MiB) avg</td><td></td></tr>
 </tbody></table>
       </div>
       <div class="fileContent content" ng-show="tabIsSet(6)" ng-class="{active: tabIsSet(6)}">
 <table  id="config_table" class="display" style="width:100%;padding: 10px" class="table table-bordered"><thead class="thead-light"><tr><th scope="col">#</th><th scope="col">Configuration Name</th><th scope="col">Configuration Value</th></tr></thead><tbody>
 <tr id="config-0"><th scope="row">1</th><td>analysis.algorithm.NeuralGraphGen </td><td> true</td></tr>
-<tr id="config-1"><th scope="row">2</th><td>analysis.programNames </td><td> ./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/file.c</td></tr>
+<tr id="config-1"><th scope="row">2</th><td>analysis.programNames </td><td> ./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/file.c</td></tr>
 <tr id="config-2"><th scope="row">3</th><td>analysis.summaryEdges </td><td> true</td></tr>
 <tr id="config-3"><th scope="row">4</th><td>cfa.functionCalls.recursionDepth </td><td> 2</td></tr>
 <tr id="config-4"><th scope="row">5</th><td>cfa.simplifyCfa </td><td> false</td></tr>
@@ -3271,8 +3265,8 @@ Generated on 2019-08-12 12:06:30 by CPAchecker 1.7-svn    </span>
 <tr id="config-8"><th scope="row">9</th><td>cpa.arg.proofWitness </td><td> witness.graphml</td></tr>
 <tr id="config-9"><th scope="row">10</th><td>cpa.composite.aggregateBasicBlocks </td><td> false</td></tr>
 <tr id="config-10"><th scope="row">11</th><td>log.level </td><td> INFO</td></tr>
-<tr id="config-11"><th scope="row">12</th><td>neuralGraphGen.nodePosition </td><td> ./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/graph.json.pos</td></tr>
-<tr id="config-12"><th scope="row">13</th><td>neuralGraphGen.output </td><td> ./process/2f2f9524-6d32-410e-b73c-738d1a42ef55/graph.json</td></tr>
+<tr id="config-11"><th scope="row">12</th><td>neuralGraphGen.nodePosition </td><td> ./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/graph.json.pos</td></tr>
+<tr id="config-12"><th scope="row">13</th><td>neuralGraphGen.output </td><td> ./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/graph.json</td></tr>
 <tr id="config-13"><th scope="row">14</th><td>specification </td><td> specification/sv-comp-reachability.spc</td></tr>
 <tr id="config-14"><th scope="row">15</th><td>termination.violation.witness </td><td> witness.graphml</td></tr>
 </tbody></table>
