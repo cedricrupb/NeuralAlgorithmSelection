@@ -43,10 +43,11 @@ class Embedding(th.nn.Module):
 
 class ConditionalGlobalAttention(th.nn.Module):
 
-    def __init__(self, in_channels, cond_channels):
+    def __init__(self, in_channels, cond_channels, aggr='mean'):
         super().__init__()
         self.query_embed = th.nn.Linear(cond_channels, in_channels)
         self.scale = th.sqrt(th.tensor(in_channels, dtype=th.float))
+        self.aggr = aggr
         self.reset_parameters()
 
     def attention(self, x, batch, condition, size=None):
@@ -62,16 +63,24 @@ class ConditionalGlobalAttention(th.nn.Module):
     def reset_parameters(self):
         self.query_embed.reset_parameters()
 
-    def forward(self, x, batch, condition, size=None):
-
-        _, count = batch.unique(return_counts=True)
-        nodes = count[batch].unsqueeze(1).expand_as(x).float()
+    def forward(self, x, batch, condition, size=None, return_attention=False):
 
         x = x.unsqueeze(-1) if x.dim() == 1 else x
         attention = self.attention(x, batch, condition, size)
         attention = attention.unsqueeze(1).expand_as(x)
 
-        out = scatter_('add', attention * x, batch, size)
+        out = attention * x
+
+        if self.aggr == 'sum':
+            _, count = batch.unique(return_counts=True)
+            nodes = count[batch].unsqueeze(1).expand_as(x).float()
+            out = nodes * out
+
+        out = scatter_('add', out, batch, size)
+
+        if return_attention:
+            return out, attention
+
         return out
 
 
@@ -261,7 +270,7 @@ def prepare_gin(nn_cfg, in_channel, out_channel):
 
     size = len(hidden)
 
-    dropout = [0.1]*len(hidden)
+    dropout = [0.0]*len(hidden)
     if 'dropout' in nn_cfg:
         dr = nn_cfg['dropout']
         if not isinstance(dr, list):
@@ -352,3 +361,24 @@ class CGIN(GINConv):
                       norm=True)
 
         super().__init__(gin)
+
+
+class ReadoutClf(th.nn.Module):
+
+    def __init__(self, in_channels, out_channels, dropout=0.0, norm=False):
+        super().__init__()
+
+        seq = []
+
+        if norm:
+            seq.append(th.nn.BatchNorm1d(in_channels))
+
+        seq.append(th.nn.Linear(in_channels, out_channels))
+
+        if dropout > 0:
+            seq.append(th.nn.Dropout(dropout))
+
+        self.nn = th.nn.Sequential(*seq)
+
+    def forward(self, input):
+        return self.nn(input)

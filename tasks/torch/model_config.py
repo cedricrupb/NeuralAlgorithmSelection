@@ -5,7 +5,7 @@ from tasks.data import proto_data
 def layer_module(config):
     config = copy.deepcopy(config)
     type = config['type']
-    del config['type']
+    # del config['type']
 
     if type == 'linear':
         config['type'] = 'torch::Linear'
@@ -110,7 +110,7 @@ def layer_module(config):
 
     if type == 'gat':
         cfg = {'type': 'geo::GATConv', 'node_dim': config['node_dim'],
-               'heads': 8, 'dropout': 0.8}
+               'dropout': 0.8}
         return cfg, ['x', 'edge_index']
 
     if type == 'res_gcn':
@@ -118,12 +118,17 @@ def layer_module(config):
                'bottleneck': config['bottleneck']}
         return cfg, ['x', 'edge_index', 'edge_attr']
 
-    raise ValueError("Unknown type: %s" % type)
+    return config, ['x', 'edge_index', 'edge_attr']
 
 
 def readout_module(type, config):
 
     if type == 'cga':
+        if 'aggr' in config:
+            return {
+                'type': 'tasks::cga',
+                'aggr': config['aggr']
+            }
         return 'tasks::cga'
 
     if type == 'add':
@@ -203,10 +208,10 @@ def layered_to_model(config):
     return {'modules': modules, 'bind': bind}
 
 
-def get_info(dataset_path):
+def get_info(dataset_path, dataset_key='train'):
 
     dataset = proto_data.GraphDataset(
-        dataset_path, 'train', shuffle=False
+        dataset_path, dataset_key, shuffle=False
     )
     example = dataset[0]
 
@@ -221,39 +226,55 @@ def get_info(dataset_path):
 
 def build_global(global_att, config, out):
 
-    input = out
+    cfg = {
+        'type': 'tasks::ReadoutClf',
+        'node_dim': out
+    }
 
     if 'dropout' in global_att:
         drop = global_att['dropout']
         if drop > 0:
-            input = 'out_drop'
-            config['modules'][input] = {
-                'type': 'torch::Dropout', 'p': drop
-            }
-            config['bind'].append([input, 'forward', 'input', out])
+            cfg['dropout'] = drop
 
-    lin_id = 'out_lin'
-    config['modules'][lin_id] = {
-        'type': 'torch::Linear', 'node_dim': input
-    }
-    input = lin_id
+    if 'norm' in global_att:
+        norm = global_att['norm']
+        cfg['norm'] = norm
+
+    config['modules']['clf'] = cfg
 
     if 'constraint' in global_att:
         gc = global_att['constraint']
         if gc:
             config['bind'].append(['source', 'category', 'input', input])
 
+    input = 'clf'
     bind = []
     for B in config['bind']:
         if B[3] == 'sink':
             bind.append([B[0], B[1], 'input', input])
         else:
             bind.append(B)
-    bind.append([lin_id, 'forward', 'input', 'sink'])
+    bind.append([input, 'forward', 'input', 'sink'])
     config['bind'] = bind
 
 
-def partial_to_model(config, dataset_path):
+def partial_to_model_bs(config, out):
+    global_att = {}
+
+    for k, v in list(config.items()):
+        if k.startswith('global_'):
+            global_att[k[7:]] = v
+            del config[k]
+
+    if 'layers' in config:
+        config = layered_to_model(config)
+
+    build_global(global_att, config, out)
+
+    return config
+
+
+def partial_to_model(config, dataset_path, dataset_key='train'):
 
     global_att = {}
 
@@ -265,7 +286,7 @@ def partial_to_model(config, dataset_path):
     if 'layers' in config:
         config = layered_to_model(config)
 
-    info = get_info(dataset_path)
+    info = get_info(dataset_path, dataset_key)
     out = info['y']
     del info['y']
 
@@ -306,6 +327,50 @@ def micro_to_partial(config):
             'layers': Ls,
             'readout': readout
         }
+
+    if type == 'dense_gin':
+        edge = True
+        if 'edge' in config:
+            edge = config['edge']
+        m = 4
+        if 'bm' in config:
+            m = config['bm']
+        Ls = [{
+                'type': 'mx::DenseEdgeGIN',
+                'node_dim': config['out'],
+                'growth': config['growth'],
+                "embed_size": config['embed_size'],
+                "layers": config['layers'],
+                'edge': edge,
+                "bm": m
+               }]
+        cga = True
+        if 'cga' in config:
+            cga = config['cga']
+
+        if cga:
+            aggr = 'mean'
+            if 'cga_aggr' in config:
+                aggr = config['cga_aggr']
+            readout = [
+                {
+                    'type': 'cga',
+                    'aggr': aggr
+                }
+            ]
+        else:
+            readout = [{
+                'type': 'add'
+            }]
+        cfg = {
+            'layers': Ls,
+            'readout': readout
+        }
+
+        for k, v in config.items():
+            if k.startswith('global'):
+                cfg[k] = v
+        return cfg
 
     raise ValueError("Unknown Type: %s" % type)
 

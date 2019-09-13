@@ -130,7 +130,7 @@ def execute_model(tools, config, dataset_path, name=None, ret=None, env=None):
 
     print(train)
 
-    best = 1000
+    best = 0
     save, load = build_model_io(env.get_cache_dir())
 
     start_time = time.time()
@@ -150,16 +150,16 @@ def execute_model(tools, config, dataset_path, name=None, ret=None, env=None):
             print("Time: %f sec" % (time.time() - start_time))
             start_time = time.time()
 
-            if val_loss < best:
-                best = val_loss
+            if val_score > best:
+                best = val_score
                 # save({
                 #    'model': train.optimizer.model,
                 #    'epoch': epoch,
-                #    'score': val_loss
+                #    'score': val_score
                 # })
 
     # model = load({'model': train.optimizer.model,
-    #              'score': 1000})['model']
+    #              'score': 0})['model']
 
     test_res = test(tools, model, dataset_path)
 
@@ -218,21 +218,20 @@ if __name__ == '__main__':
     for i in range(1):
 
         config = {
-            'name': 'test_again_memory_%i' % i,
+            'name': 'dense32_200_full_overall_%i' % i,
             'model': {
-                'layers': [
-                    {'type': 'ex_entry', 'node_dim': 64},
-                    {'type': 'dense_egin', 'node_dim': 16, 'hidden': 32},
-                    {'type': 'dense_egin', 'node_dim': 16, 'hidden': 32}
-                ],
-                'readout': [
-                    {'type': 'cga', 'of': 2}
-                ]
+                "type": "dense_gin",
+                "embed_size": 32,
+                "growth": 32,
+                "layers": 2,
+                "out": 96,
+                "global_condition": True,
+                "global_norm": True
             },
             'dataset': {
-                'key': 'rank18_memory_%i' % i,
+                'key': 'rank18_overall_%i' % i,
                 'competition': '2018',
-                'category': 'memory',
+                'category': None,
                 'test_ratio': 0.2,
                 'min_tool_coverage': 0.8,
                 'ast_type': 'bag'
@@ -243,7 +242,8 @@ if __name__ == '__main__':
                 'batch': 32,
                 'shuffle': 42,
                 'augment': False,
-                'optimizer': {'type': 'torch::Adam', 'lr': 0.01,
+                'clip_grad': 5,
+                'optimizer': {'type': 'torch::AdamW', 'lr': 0.01,
                               'weight_decay': 1e-4},
                 'scheduler': {
                     'type': 'torch::StepLR', 'mode': 'epoch',
@@ -252,7 +252,7 @@ if __name__ == '__main__':
                 'validate': {
                     'checkpoint_step': 0,
                     'score': 'spearmann',
-                    'split': 0.1
+                    'split': 0.03
                 }
             },
             'test': {'type': 'category', 'scores': 'spearmann'}

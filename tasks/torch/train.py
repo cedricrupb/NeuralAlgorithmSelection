@@ -31,6 +31,117 @@ class SuperConverge(lr_scheduler._LRScheduler):
         return [self.calc_lr(self.last_epoch)
                 for base_lr in self.base_lrs]
 
+# Copyied form Torch 1.2.0
+class AdamW(th.optim.Optimizer):
+    r"""Implements AdamW algorithm.
+
+    The original Adam algorithm was proposed in `Adam: A Method for Stochastic Optimization`_.
+    The AdamW variant was proposed in `Decoupled Weight Decay Regularization`_.
+
+    Arguments:
+        params (iterable): iterable of parameters to optimize or dicts defining
+            parameter groups
+        lr (float, optional): learning rate (default: 1e-3)
+        betas (Tuple[float, float], optional): coefficients used for computing
+            running averages of gradient and its square (default: (0.9, 0.999))
+        eps (float, optional): term added to the denominator to improve
+            numerical stability (default: 1e-8)
+        weight_decay (float, optional): weight decay coefficient (default: 1e-2)
+        amsgrad (boolean, optional): whether to use the AMSGrad variant of this
+            algorithm from the paper `On the Convergence of Adam and Beyond`_
+            (default: False)
+
+    .. _Adam\: A Method for Stochastic Optimization:
+        https://arxiv.org/abs/1412.6980
+    .. _Decoupled Weight Decay Regularization:
+        https://arxiv.org/abs/1711.05101
+    .. _On the Convergence of Adam and Beyond:
+        https://openreview.net/forum?id=ryQu7f-RZ
+    """
+
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
+                 weight_decay=1e-2, amsgrad=False):
+        if not 0.0 <= lr:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if not 0.0 <= eps:
+            raise ValueError("Invalid epsilon value: {}".format(eps))
+        if not 0.0 <= betas[0] < 1.0:
+            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+        if not 0.0 <= betas[1] < 1.0:
+            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        defaults = dict(lr=lr, betas=betas, eps=eps,
+                        weight_decay=weight_decay, amsgrad=amsgrad)
+        super(AdamW, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(AdamW, self).__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('amsgrad', False)
+
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Arguments:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            loss = closure()
+
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+
+                # Perform stepweight decay
+                p.data.mul_(1 - group['lr'] * group['weight_decay'])
+
+                # Perform optimization step
+                grad = p.grad.data
+                if grad.is_sparse:
+                    raise RuntimeError('Adam does not support sparse gradients, please consider SparseAdam instead')
+                amsgrad = group['amsgrad']
+
+                state = self.state[p]
+
+                # State initialization
+                if len(state) == 0:
+                    state['step'] = 0
+                    # Exponential moving average of gradient values
+                    state['exp_avg'] = th.zeros_like(p.data)
+                    # Exponential moving average of squared gradient values
+                    state['exp_avg_sq'] = th.zeros_like(p.data)
+                    if amsgrad:
+                        # Maintains max of all exp. moving avg. of sq. grad. values
+                        state['max_exp_avg_sq'] = th.zeros_like(p.data)
+
+                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+                if amsgrad:
+                    max_exp_avg_sq = state['max_exp_avg_sq']
+                beta1, beta2 = group['betas']
+
+                state['step'] += 1
+
+                # Decay the first and second moment running average coefficient
+                exp_avg.mul_(beta1).add_(1 - beta1, grad)
+                exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
+                if amsgrad:
+                    # Maintains the maximum of all 2nd moment running avg. till now
+                    th.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
+                    # Use the max. for normalizing running avg. of gradient
+                    denom = max_exp_avg_sq.sqrt().add_(group['eps'])
+                else:
+                    denom = exp_avg_sq.sqrt().add_(group['eps'])
+
+                bias_correction1 = 1 - beta1 ** state['step']
+                bias_correction2 = 1 - beta2 ** state['step']
+                step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
+
+                p.data.addcdiv_(-step_size, exp_avg, denom)
+
+        return loss
+
 
 def prepare_inst_dict(D, keys):
 
@@ -110,6 +221,9 @@ def instantiate_scheduler(type, config):
 
 def instantiate_optim(type, config):
 
+    if type == "torch::AdamW":
+        return AdamW(**config)
+
     if type.startswith('torch::'):
         type_ = type[7:]
         mod = optim
@@ -171,22 +285,25 @@ def to_str(obj, name, keys, alt={}):
 class ModelOptimizer:
 
     def __init__(self, model, optim,
-                 loss, scheduler=None):
+                 loss, scheduler=None, clip_grad=False):
         self.model = model
         self.optim = optim
         self.loss = loss
         self.scheduler = scheduler
+        self.clip_grad = clip_grad
 
     def resume(self, model, optim, scheduler):
         self.model.load_state_dict(model)
         self.optim.load_state_dict(optim)
-        self.scheduler.load_state_dict(scheduler)
+        if self.scheduler is not None:
+            self.scheduler.load_state_dict(scheduler)
 
     def checkpoint(self):
+        scheduler = None if self.scheduler is None else self.scheduler.state_dict()
         return {
             'model': self.model.state_dict(),
             'optim': self.optim.state_dict(),
-            'scheduler': self.scheduler.state_dict()
+            'scheduler': scheduler
         }
 
     def train(self, X, y):
@@ -196,6 +313,11 @@ class ModelOptimizer:
         out = self.model(X)
         loss = self.loss(out, y)
         loss.backward()
+
+        clip_grad = self.clip_grad
+        if clip_grad and clip_grad > 0:
+            th.nn.utils.clip_grad_norm_(self.model.parameters(), clip_grad)
+
         self.optim.step()
 
         if self.scheduler is not None:
@@ -205,6 +327,18 @@ class ModelOptimizer:
 
     def to(self, device):
         self.model = self.model.to(device)
+        self.loss = self.loss.to(device)
+
+        for state in self.optim.state.values():
+            for k, v in state.items():
+                if isinstance(v, th.Tensor):
+                    state[k] = v.to(device)
+
+        if self.scheduler is not None:
+            for state in self.scheduler.state.values():
+                for k, v in state.items():
+                    if isinstance(v, th.Tensor):
+                        state[k] = v.to(device)
 
     def __str__(self):
         return to_str(
@@ -387,7 +521,22 @@ def graph_augmention(options=[0, 1, 2, 5, 6]):
     return augment
 
 
-def dataset_transform(augment):
+def edge_subsample(size):
+
+    def subsample(data):
+        edge_index = data.edge_index
+        if edge_index.size(1) <= size:
+            return data
+
+        sample = th.randint(1, edge_index.size(1), (size,))
+        data.edge_index = data.edge_index[:, sample]
+
+        return data
+
+    return subsample
+
+
+def dataset_transform(augment, subsample):
 
     transform = None
     options = [0, 1, 2, 5, 6]
@@ -397,21 +546,38 @@ def dataset_transform(augment):
     if augment:
         transform = graph_augmention(options)
 
+    if subsample and subsample > 0:
+        sub = edge_subsample(subsample)
+        if transform is not None:
+            def chain(data):
+                return sub(transform(data))
+            transform = chain
+        else:
+            transform = sub
+
     return transform
 
 
 class DatasetOp:
 
-    def __init__(self, key, shuffle, augment=False):
+    def __init__(self, key, shuffle, augment=False, subsample=False):
         self.key = key
         self.shuffle = shuffle
         self.augment = augment
+        self.subsample = subsample
 
-    def __call__(self, dataset_path):
+    def __call__(self, dataset_path, buffer=False):
+        if buffer:
+            return proto_data.InMemGraphDataset(
+                dataset_path, self.key, shuffle=self.shuffle,
+                transform=dataset_transform(
+                    self.augment, self.subsample
+                )
+            )
         return proto_data.GraphDataset(
             dataset_path, self.key, shuffle=self.shuffle,
             transform=dataset_transform(
-                self.augment
+                self.augment, self.subsample
             )
         )
 
@@ -436,7 +602,7 @@ class ModelTrainer:
 
     def __init__(self, epoch, batch, optimizer,
                  dataset_op, shuffle=True, validate=None,
-                 norm=False, scheduler=None):
+                 norm=False, buffer=False, scheduler=None):
         self.epoch = epoch
         self.batch = batch
         self.optimizer = optimizer
@@ -447,16 +613,18 @@ class ModelTrainer:
         self.norm = norm
         self.total_batches = -1
         self.last_epoch = 0
+        self.buffer = buffer
 
     def _prepare(self, dataset_path):
-        dataset = self.dataset_op(dataset_path)
+        dataset = self.dataset_op(dataset_path, self.buffer)
+
         if self.validate is not None:
             dataset = self.validate.reduce_dataset(
                 dataset
             )
         return DataLoader(
             dataset, batch_size=self.batch,
-            shuffle=self.shuffle, num_workers=6
+            shuffle=self.shuffle, num_workers=8
         )
 
     def _norm(self, loader, device):
@@ -533,6 +701,10 @@ class ModelTrainer:
                 tqdm(iterator, total=self.total_batches)
 
             for i, batch in iterator:
+                if batch.num_graphs <= 1:
+                    print("There exists compatible issues for batches of size 1. Skip.")
+                    continue
+
                 batch = batch.to(device)
                 batch.x = norm_func(batch.x)
                 train_loss = self.optimizer.train(
@@ -592,9 +764,14 @@ def build_training(config, model, data_key='train'):
     else:
         step_scheduler = config['scheduler']['obj']
 
+    clip_grad = False
+    if 'clip_grad' in config:
+        clip_grad = config['clip_grad']
+        del config['clip_grad']
+
     optimizer = ModelOptimizer(
         model, config['optimizer'], config['loss'],
-        scheduler=step_scheduler
+        scheduler=step_scheduler, clip_grad=clip_grad
     )
     del config['optimizer'], config['loss'], config['scheduler']
 
@@ -609,15 +786,19 @@ def build_training(config, model, data_key='train'):
         config['shuffle'] = True
     if 'augment' not in config:
         config['augment'] = False
+    if 'subsample' not in config:
+        config['subsample'] = False
 
     if isinstance(config['shuffle'], int):
         random.seed(config['shuffle'])
         th.manual_seed(config['shuffle'])
 
     config['dataset_op'] = DatasetOp(
-        data_key, config['shuffle'], config['augment']
+        data_key, config['shuffle'], config['augment'],
+        subsample=config['subsample']
     )
     del config['augment']
+    del config['subsample']
 
     config['scheduler'] = epoch_scheduler
 

@@ -12,6 +12,7 @@ from tasks.data import dataset_tasks as dt
 from tasks.utils import train_utils as tu
 import torch as th
 from torch_geometric.data import Batch
+from tasks.torch.models import ConditionalGlobalAttention
 
 
 app = Flask(__name__, static_url_path="/static/")
@@ -22,11 +23,26 @@ allowed_dirs = set(['js', 'css', 'semantic'])
 threads = {}
 
 
+def att_callback():
+
+    att = []
+
+    def cb(model, kwargs):
+        if isinstance(model, ConditionalGlobalAttention):
+            kwargs['return_attention'] = True
+            _, a = model(**kwargs)
+            del kwargs['return_attention']
+            att.append(a)
+        return kwargs
+
+    return att, cb
+
+
 def transform_c(id, model_id, category, base_path, file_path):
 
-    model, base, info = db_utils.load_model(model_id)
+    model, info = db_utils.load_model(model_id)
 
-    ast_graph = info['model_key'].endswith('_graph')
+    ast_graph = info['experiment'].endswith('_graph')
 
     graph_path = os.path.join(base_path, "graph.json")
     try:
@@ -40,6 +56,8 @@ def transform_c(id, model_id, category, base_path, file_path):
                                         category, pos=pos,
                                         ast_graph=ast_graph)
         data = Batch.from_data_list([data])
+        att, cb = att_callback()
+        model.register_callback(cb)
         pred = th.sigmoid(model(data))
 
         tools = info['tools']
@@ -48,7 +66,6 @@ def transform_c(id, model_id, category, base_path, file_path):
         with open(os.path.join(base_path, "prediction.json"), "w") as o:
             json.dump(ranking, o)
 
-        _, att = base(data, return_attention=True)
         pos = data.position
         attention = []
 
@@ -60,8 +77,9 @@ def transform_c(id, model_id, category, base_path, file_path):
                 continue
             o = []
             for i in range(a.shape[0]):
+                node_att = a[i][0].item()
                 o.append(
-                    [pos[0, i].item(), pos[1, i].item(), a[i].item(),
+                    [pos[0, i].item(), pos[1, i].item(), node_att,
                      index[i]]
                 )
             attention.append(o)

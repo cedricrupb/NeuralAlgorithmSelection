@@ -119,3 +119,121 @@ class DenseEGIN(MessagePassing):
         attr = edge_attr[edge_index_j]
         inter = th.cat([x_i, x_j, attr.float()], dim=1)
         return self.nn(inter)
+
+
+class DenseEdgeLayer(MessagePassing):
+
+    def __init__(self, in_channels, edge_channels, out_channels, m=4):
+        super().__init__(aggr='add')
+        growth = out_channels - in_channels
+        in_size = in_channels + edge_channels
+
+        self.nn = th.nn.Sequential(
+            th.nn.BatchNorm1d(in_size),
+            th.nn.ReLU(),
+            th.nn.Linear(in_size, m*growth),
+            th.nn.BatchNorm1d(m*growth),
+            th.nn.ReLU(),
+            th.nn.Linear(m*growth, growth),
+            th.nn.BatchNorm1d(growth),
+            th.nn.ReLU()
+        )
+
+    def forward(self, x, edge_index, edge_attr):
+        x = x.unsqueeze(-1) if x.dim() == 1 else x
+
+        edges = self.propagate(edge_index, x=x,
+                               edge_attr=edge_attr)
+
+        return th.cat([x, edges], dim=1)
+
+    def message(self, x_j, edge_index_j, edge_attr):
+        attr = edge_attr[edge_index_j]
+        inter = th.cat([x_j, attr.float()], dim=1)
+        return self.nn(inter)
+
+
+class DenseNodeLayer(MessagePassing):
+
+    def __init__(self, in_channels, out_channels, m=4):
+        super().__init__(aggr='add')
+        growth = out_channels - in_channels
+        in_size = in_channels
+
+        self.nn = th.nn.Sequential(
+            th.nn.BatchNorm1d(in_size),
+            th.nn.ReLU(),
+            th.nn.Linear(in_size, m*growth),
+            th.nn.BatchNorm1d(m*growth),
+            th.nn.ReLU(),
+            th.nn.Linear(m*growth, growth),
+            th.nn.ReLU()
+        )
+
+    def forward(self, x, edge_index, edge_attr):
+        x = x.unsqueeze(-1) if x.dim() == 1 else x
+
+        x_in = self.nn(x)
+
+        edges = self.propagate(edge_index, x=x_in)
+
+        return th.cat([x, edges], dim=1)
+
+    def message(self, x_j):
+        return x_j
+
+
+class DenseEdgeGIN(th.nn.Module):
+
+    def __init__(self, in_channels, edge_channels, out_channels,
+                 embed_size, growth, layers=2, edge=True, bm=4):
+        super().__init__()
+        mid = int((in_channels + embed_size)/2)
+        self.in_gate = th.nn.Sequential(
+            th.nn.BatchNorm1d(in_channels),
+            th.nn.ReLU(),
+            th.nn.Linear(in_channels, mid),
+            th.nn.BatchNorm1d(mid),
+            th.nn.ReLU(),
+            th.nn.Linear(mid, embed_size)
+        )
+
+        size = embed_size
+
+        layer = []
+
+        for i in range(layers):
+            layer.append(
+                DenseEdgeLayer(
+                    size, edge_channels, size + growth, m=bm
+                ) if edge else
+                DenseNodeLayer(
+                    size, size + growth, m=bm
+                )
+            )
+            size += growth
+
+        self.dense = th.nn.ModuleList(layer)
+
+        mid = int((size + out_channels)/2)
+
+        self.out_gate = th.nn.Sequential(
+            th.nn.BatchNorm1d(size),
+            th.nn.ReLU(),
+            th.nn.Linear(size, mid),
+            th.nn.BatchNorm1d(mid),
+            th.nn.ReLU(),
+            th.nn.Linear(mid, out_channels),
+            th.nn.BatchNorm1d(out_channels),
+            th.nn.ReLU()
+        )
+
+    def forward(self, x, edge_index, edge_attr):
+        x = x.unsqueeze(-1) if x.dim() == 1 else x
+
+        x_in = self.in_gate(x)
+
+        for module in self.dense:
+            x_in = module(x_in, edge_index, edge_attr)
+
+        return self.out_gate(x_in)

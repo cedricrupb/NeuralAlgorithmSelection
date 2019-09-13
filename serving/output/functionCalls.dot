@@ -2,6 +2,7 @@ digraph functioncalls {
 rankdir=LR;
 
 main [shape="box", color=blue];
+fib -> __VERIFIER_assert;
 fib -> fib;
 main -> fib;
 }

@@ -1,5 +1,8 @@
-fib::__CPAchecker_TMP_0	4
+main::res	4
 fib::__retval__	4
-fib::__CPAchecker_TMP_1	4
-fib::i	4
+main::inp	4
+fib::left	4
 main::__retval__	7
+__VERIFIER_assert::cond	4
+fib::n	4
+fib::right	4

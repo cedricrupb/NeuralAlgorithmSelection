@@ -156,7 +156,9 @@ def read_svcomp_bz2(path, result):
 
 
 def sp_run_success(cmd):
-    utils.run_command(cmd)
+    # utils.run_command(cmd)
+    c = ' '.join(cmd)
+    os.system(c)
 
 
 def prepare_svcomp_git(competition_year, directory):

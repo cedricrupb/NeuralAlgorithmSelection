@@ -316,6 +316,11 @@ function presentAttention(pos){
   for(att of data){
     pos0 = att[0];
     pos1 = att[1];
+
+    if(pos1 - pos0 > 0){
+      continue;
+    }
+
     a = att[2];
 
     for(p = pos0; p <= pos1; p++){
@@ -346,7 +351,7 @@ function presentAttention(pos){
   for(key in lineAttention){
     attention = (lineAttention[key] - min)/(max - min);
 
-    if(attention >= 0.5){
+    if(attention >= 0.1){
       line = editor.getLine(key);
       if(line != undefined){
         pos0 = CodeMirror.Pos(key, 0);

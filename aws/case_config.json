@@ -1,0 +1,99 @@
+{
+  "overall": {
+      "loss": "masked::HingeLoss",
+      "epoch": 10,
+      "batch": 32,
+      "shuffle": 42,
+      "augment": false,
+      "buffer": true,
+      "subsample": 10000,
+      "optimizer": {"type": "torch::AdamW", "lr": 0.01,
+                    "weight_decay": 1e-4},
+      "scheduler": {
+          "type": "torch::StepLR", "mode": "epoch",
+          "step_size": 5, "gamma": 0.1
+      },
+      "validate": {
+          "checkpoint_step": 0,
+          "score": "spearmann",
+          "split": 0.03
+      }
+  },
+  "reachability": {
+    "loss": "masked::HingeLoss",
+    "epoch": 10,
+    "batch": 32,
+    "shuffle": 42,
+    "augment": false,
+    "buffer": true,
+    "subsample": 10000,
+    "optimizer": {"type": "torch::AdamW", "lr": 0.01,
+                  "weight_decay": 1e-4},
+    "scheduler": {
+        "type": "torch::StepLR", "mode": "epoch",
+        "step_size": 5, "gamma": 0.1
+    },
+    "validate": {
+        "checkpoint_step": 0,
+        "score": "spearmann",
+        "split": 0.03
+    }
+  },
+  "termination": {
+    "loss": "masked::HingeLoss",
+    "epoch": 40,
+    "batch": 32,
+    "shuffle": 42,
+    "augment": false,
+    "buffer": true,
+    "optimizer": {"type": "torch::AdamW", "lr": 0.01,
+                  "weight_decay": 1e-4},
+    "scheduler": {
+        "type": "torch::StepLR", "mode": "epoch",
+        "step_size": 20, "gamma": 0.1
+    },
+    "validate": {
+        "checkpoint_step": 0,
+        "score": "spearmann",
+        "split": 0.03
+    }
+  },
+  "memory": {
+    "loss": "masked::HingeLoss",
+    "epoch": 40,
+    "batch": 32,
+    "shuffle": 42,
+    "augment": false,
+    "buffer": true,
+    "optimizer": {"type": "torch::AdamW", "lr": 0.01,
+                  "weight_decay": 1e-4},
+    "scheduler": {
+        "type": "torch::StepLR", "mode": "epoch",
+        "step_size": 20, "gamma": 0.1
+    },
+    "validate": {
+        "checkpoint_step": 0,
+        "score": "spearmann",
+        "split": 0.1
+    }
+  },
+  "overflow": {
+    "loss": "masked::HingeLoss",
+    "epoch": 40,
+    "batch": 32,
+    "shuffle": 42,
+    "augment": false,
+    "buffer": true,
+    "optimizer": {"type": "torch::AdamW", "lr": 0.01,
+                  "weight_decay": 1e-4},
+    "scheduler": {
+        "type": "torch::StepLR", "mode": "epoch",
+        "step_size": 20, "gamma": 0.1
+    },
+    "validate": {
+        "checkpoint_step": 0,
+        "score": "spearmann",
+        "split": 0.1
+    }
+  }
+}

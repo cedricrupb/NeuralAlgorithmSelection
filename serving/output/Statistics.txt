@@ -8,67 +8,67 @@ Automaton transfer successors:                     0.00 (sum: 0, count: 0, min: 
 
 Code Coverage
 -----------------------------
-  Function coverage:      0.500
+  Function coverage:      0.333
   Visited lines:          0
-  Total lines:            5
+  Total lines:            12
   Line coverage:          0.000
   Visited conditions:     0
-  Total conditions:       2
+  Total conditions:       6
   Condition coverage:     0.000
 
 CPAchecker general statistics
 -----------------------------
-Number of program locations:                       16
-Number of CFA edges (per node):                          21 (count: 16, min: 0, max: 3, avg: 1.31)
-Number of relevant variables:                      1
-Number of functions:                               2
-Number of loops (and loop nodes):                         0 (sum: 0, min: 0, max: 0, avg: 0.00)
+Number of program locations:                       31
+Number of CFA edges (per node):                          39 (count: 31, min: 0, max: 3, avg: 1.26)
+Number of relevant variables:                      3
+Number of functions:                               3
+Number of loops (and loop nodes):                         1 (sum: 5, min: 5, max: 5, avg: 5.00)
 Size of reached set:             1
-  Number of reached locations:   1 (6%)
+  Number of reached locations:   1 (3%)
     Avg states per location:     1
-    Max states per location:     1 (at node N1)
-  Number of reached functions:   1 (50%)
+    Max states per location:     1 (at node N8)
+  Number of reached functions:   1 (33%)
   Number of partitions:          1
     Avg size of partitions:      1
     Max size of partitions:      1
   Number of target states:       0
   Size of final wait list:       1
 
-Time for analysis setup:          1.706s
-  Time for loading CPAs:          0.429s
-  Time for loading parser:        0.424s
-  Time for CFA construction:      0.773s
-    Time for parsing file(s):     0.352s
-    Time for AST to CFA:          0.200s
-    Time for CFA sanity check:    0.008s
-    Time for post-processing:     0.150s
-    Time for CFA export:          0.702s
-      Time for function pointers resolving:            0.004s
+Time for analysis setup:          1.327s
+  Time for loading CPAs:          0.274s
+  Time for loading parser:        0.314s
+  Time for CFA construction:      0.611s
+    Time for parsing file(s):     0.308s
+    Time for AST to CFA:          0.153s
+    Time for CFA sanity check:    0.006s
+    Time for post-processing:     0.104s
+    Time for CFA export:          0.575s
+      Time for function pointers resolving:            0.002s
         Function calls via function pointers:             0 (count: 1, min: 0, max: 0, avg: 0.00)
         Instrumented function pointer calls:              0 (count: 1, min: 0, max: 0, avg: 0.00)
         Function calls with function pointer arguments:        0 (count: 1, min: 0, max: 0, avg: 0.00)
         Instrumented function pointer arguments:          0 (count: 1, min: 0, max: 0, avg: 0.00)
-      Time for var class.:                             0.093s
-        Time for collecting variables:                 0.035s
-        Time for solving dependencies:                 0.000s
+      Time for var class.:                             0.061s
+        Time for collecting variables:                 0.019s
+        Time for solving dependencies:                 0.001s
         Time for building hierarchy:                   0.000s
-        Time for building classification:              0.056s
-        Time for exporting data:                       0.002s
-Time for Analysis:                0.148s
-CPU time for analysis:            0.172s
-Time for analyzing result:        0.012s
-Total time for CPAchecker:        1.864s
-Total CPU time for CPAchecker:    3.538s
-Time for statistics:              0.078s
+        Time for building classification:              0.030s
+        Time for exporting data:                       0.011s
+Time for Analysis:                0.094s
+CPU time for analysis:            0.275s
+Time for analyzing result:        0.004s
+Total time for CPAchecker:        1.429s
+Total CPU time for CPAchecker:    3.308s
+Time for statistics:              0.109s
 
-Time for Garbage Collector:       0.092s (in 5 runs)
+Time for Garbage Collector:       0.117s (in 5 runs)
 Garbage Collector(s) used:    PS MarkSweep, PS Scavenge
-Used heap memory:                 44MB (    42 MiB) max;     24MB (    23 MiB) avg;     54MB (    52 MiB) peak
-Used non-heap memory:             30MB (    29 MiB) max;     22MB (    20 MiB) avg;     31MB (    30 MiB) peak
-Used in PS Old Gen pool:          15MB (    14 MiB) max;      6MB (     6 MiB) avg;     15MB (    14 MiB) peak
-Allocated heap memory:           146MB (   139 MiB) max;    131MB (   125 MiB) avg
-Allocated non-heap memory:        31MB (    30 MiB) max;     22MB (    21 MiB) avg
-Total process virtual memory:  17020MB ( 16232 MiB) max;  16977MB ( 16191 MiB) avg
+Used heap memory:                 41MB (    39 MiB) max;     26MB (    25 MiB) avg;     56MB (    53 MiB) peak
+Used non-heap memory:             29MB (    28 MiB) max;     21MB (    20 MiB) avg;     31MB (    30 MiB) peak
+Used in PS Old Gen pool:          17MB (    16 MiB) max;      6MB (     5 MiB) avg;     17MB (    16 MiB) peak
+Allocated heap memory:           147MB (   141 MiB) max;    130MB (   124 MiB) avg
+Allocated non-heap memory:        30MB (    29 MiB) max;     22MB (    21 MiB) avg
+Total process virtual memory:  16994MB ( 16206 MiB) max;  16974MB ( 16188 MiB) avg
 
 Verification result: UNKNOWN, incomplete analysis.
 More details about the verification run can be found in the directory "./output".

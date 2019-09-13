@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/Users/cedricrichter/Documents/Arbeit/Ranking/NeuralAlgorithmSelection/serving/serving.py", line 33, in transform_c
-    graph_path, pos_path, _ = p.parse_c_code(file_path, graph_path)
-  File "/Users/cedricrichter/Documents/Arbeit/Ranking/NeuralAlgorithmSelection/serving/parsing.py", line 15, in parse_c_code
-    "Environment variable PESCO_PATH has to be defined!")
-ValueError: Environment variable PESCO_PATH has to be defined!
