@@ -1,8 +1,10 @@
-2019-08-16 17:57:43:067	INFO	CPAchecker.run	CPAchecker 1.7-svn (Java HotSpot(TM) 64-Bit Server VM 1.8.0_101) started
+2019-09-11 21:25:59:356	INFO	CPAchecker.run	CPAchecker 1.7-svn (Java HotSpot(TM) 64-Bit Server VM 1.8.0_101) started
 
-2019-08-16 17:57:44:614	INFO	CoreComponentsFactory.createAlgorithm	Using Neural Graph generation algorithm
+2019-09-11 21:26:00:151	WARNING	CheckBindingVisitor.visit	Undefined function __VERIFIER_error found, first called in line 1
 
-2019-08-16 17:57:44:628	WARNING	CPAchecker.printConfigurationWarnings	The following configuration options were specified but are not used:
+2019-09-11 21:26:00:608	INFO	CoreComponentsFactory.createAlgorithm	Using Neural Graph generation algorithm
+
+2019-09-11 21:26:00:707	WARNING	CPAchecker.printConfigurationWarnings	The following configuration options were specified but are not used:
  termination.violation.witness
  cpa.arg.compressWitness
  counterexample.export.graphml
@@ -11,17 +13,17 @@
  cfa.functionCalls.recursionDepth 
 
 
-2019-08-16 17:57:44:628	INFO	CPAchecker.runAlgorithm	Starting analysis ...
+2019-09-11 21:26:00:707	INFO	CPAchecker.runAlgorithm	Starting analysis ...
 
-2019-08-16 17:57:44:630	INFO	NeuralGraphGenAlgorithm.run	Start CFA processing....
+2019-09-11 21:26:00:710	INFO	NeuralGraphGenAlgorithm.run	Start CFA processing....
 
-2019-08-16 17:57:44:694	INFO	NeuralGraphGenAlgorithm.run	Add data dependencies
+2019-09-11 21:26:00:764	INFO	NeuralGraphGenAlgorithm.run	Add data dependencies
 
-2019-08-16 17:57:44:701	INFO	NeuralGraphGenAlgorithm.run	Add control dependencies
+2019-09-11 21:26:00:772	INFO	NeuralGraphGenAlgorithm.run	Add control dependencies
 
-2019-08-16 17:57:44:715	INFO	NeuralGraphGenAlgorithm.run	Write graph to ./process/9a47ac26-6697-498c-80c1-7e49a4f6ab96/graph.json
+2019-09-11 21:26:00:780	INFO	NeuralGraphGenAlgorithm.run	Write graph to ./process/e1250ee4-9b0b-49a7-b80e-278b51539b8e/graph.json
 
-2019-08-16 17:57:44:742	INFO	CPAchecker.runAlgorithm	Stopping analysis ...
+2019-09-11 21:26:00:803	INFO	CPAchecker.runAlgorithm	Stopping analysis ...
 
-2019-08-16 17:57:44:748	WARNING	CPAchecker.analyzeResult	Analysis not completed: there are still states to be processed.
+2019-09-11 21:26:00:807	WARNING	CPAchecker.analyzeResult	Analysis not completed: there are still states to be processed.
 

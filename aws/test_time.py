@@ -18,6 +18,8 @@ import argparse
 import json
 from zipfile import ZipFile
 import shutil
+from tqdm import tqdm
+import traceback
 
 
 def build_model_io(base_dir):
@@ -192,11 +194,14 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
 
     test_time = {}
 
-    for batch in loader:
+    for batch in tqdm(loader):
         batch = batch.to(device)
         size = batch.num_nodes
         start_time = time.time()
-        out = model(batch)
+        try:
+            out = model(batch)
+        except Exception:
+            traceback.print_exc()
         end_time = time.time() - start_time
 
         if size not in test_time:
@@ -204,14 +209,14 @@ def test_model(tools, config, dataset_path, model, checkpoint_path=None):
         test_time[size].append(end_time)
 
     with open("test_time.json", "w") as o:
-        json.dumps(test_time, o, indent=4)
+        json.dump(test_time, o, indent=4)
 
     if cleanup:
         print("Cleanup...")
         shutil.rmtree(dataset_path)
 
 
-def run(config, train_file, test_file, checkpoint=None):
+def run(config, train_file, checkpoint=None):
 
     model = train_model(
         config['tools'],
@@ -221,7 +226,7 @@ def run(config, train_file, test_file, checkpoint=None):
 
     if 'test' in config:
         test_model(config['tools'], config,
-                   test_file, model, checkpoint)
+                   train_file, model, checkpoint)
 
 
 if __name__ == '__main__':
@@ -229,14 +234,12 @@ if __name__ == '__main__':
 
     parser.add_argument('config')
     parser.add_argument('train_file')
-    parser.add_argument('test_file')
     parser.add_argument("--checkpoint", '-c')
 
     args = parser.parse_args()
 
     config = args.config
     train_file = args.train_file
-    test_file = args.test_file
     checkpoint = args.checkpoint
 
     if not os.path.exists(config):
@@ -246,4 +249,4 @@ if __name__ == '__main__':
     with open(config, "r") as i:
         config = json.load(i)
 
-    run(config, train_file, test_file, checkpoint)
+    run(config, train_file, checkpoint)

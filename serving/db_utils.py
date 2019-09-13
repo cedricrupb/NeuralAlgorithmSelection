@@ -105,8 +105,11 @@ def load_model(id):
     fs = GridFS(db)
     with open("tmp", "wb") as o:
         o.write(fs.get(f['model_ref']).read())
-    state = th.load("tmp")
+    state = th.load("tmp", map_location='cpu')
     os.remove("tmp")
+
+    if 'model' in state:
+        state = state['model']
 
     model_def = f['experiment_def']['model']
 

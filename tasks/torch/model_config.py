@@ -258,6 +258,22 @@ def build_global(global_att, config, out):
     config['bind'] = bind
 
 
+def partial_to_model_bs(config, out):
+    global_att = {}
+
+    for k, v in list(config.items()):
+        if k.startswith('global_'):
+            global_att[k[7:]] = v
+            del config[k]
+
+    if 'layers' in config:
+        config = layered_to_model(config)
+
+    build_global(global_att, config, out)
+
+    return config
+
+
 def partial_to_model(config, dataset_path, dataset_key='train'):
 
     global_att = {}

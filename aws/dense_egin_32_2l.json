@@ -1,0 +1,14 @@
+{
+        "name": "dense_egin_32_2l",
+        "model": {
+            "type": "dense_gin",
+            "embed_size": 32,
+            "growth": 32,
+            "layers": 2,
+            "out": 96,
+            "global_condition": true,
+            "global_norm": true
+        },
+        "test": {"type": "category", "scores": "spearmann"},
+        "tools": ["ukojak","esbmc-incr","depthk","cbmc","esbmc-kind","utaipan","2ls","cpa-seq","symbiotic","uautomizer"]
+    }

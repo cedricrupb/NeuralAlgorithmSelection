@@ -1,0 +1,25 @@
+{
+    "spearmann": {
+        "mean": 0.7613772749900818,
+        "std": 0.30783382058143616
+    },
+    "spearmann_reachability": {
+        "mean": 0.7338736057281494,
+        "std": 0.3138851821422577
+    },
+    "spearmann_termination": {
+        "mean": 0.9010833501815796,
+        "std": 0.1840810775756836
+    },
+    "spearmann_memory": {
+        "mean": 0.635650634765625,
+        "std": 0.30110597610473633
+    },
+    "spearmann_overflow": {
+        "mean": 0.5843310952186584,
+        "std": 0.4409460127353668
+    },
+    "test_time": 20.078598260879517,
+    "num_graphs": 829,
+    "num_params": 52439
+}

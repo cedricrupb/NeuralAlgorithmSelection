@@ -66,27 +66,32 @@ def get_config():
 
 
 db = get_db()
-graph = db.svcomp
+graph = db.wl_features
 stat = db.graph_statistics
 
 sizes = {}
-cursor = stat.find({'competition': '2018'}, ['name', 'cfg_edges', 'pdg_edges'])
+cursor = stat.find({'competition': '2018'}, ['name', 'cfg_nodes'])
 
 for obj in tqdm(cursor, total=cursor.count()):
-    sizes[obj['name']] = obj['cfg_edges'] + obj['pdg_edges']
+    sizes[obj['name']] = obj['cfg_nodes']
 
 
 filter = {
-    'svcomp': '2018'
+    'competition': '2018',
+    'name': {'$exists': 1}
 }
 
 times = {}
-cursor = graph.find(filter, ['name', 'file'])
+cursor = graph.find(filter, ['name', 'run_time'])
 
 for obj in tqdm(cursor, total=cursor.count()):
-    name = obj['file'].replace("../sv-benchmarks/c/", "")
-    if obj['name'] in sizes and name not in filter:
-        times[name] = sizes[obj['name']]
+    if obj['name'] in sizes:
+        size = sizes[obj['name']]
+        if size not in times:
+            times[size] = []
+        times[size].append(obj['run_time']*0.4)
 
-with open("conv_size.json", "w") as o:
+print(len(times))
+
+with open("wl_runtime2.json", "w") as o:
     json.dump(times, o, indent=4)
